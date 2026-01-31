@@ -22,13 +22,13 @@ class SuperUserSeeder extends Seeder
                 'name' => 'Super Admin',
                 'email' => $email,
                 'email_verified_at' => now(),
-                'password' => Hash::make('password'), 
+                'password' => Hash::make('Kenya2024?Kenya2024?'), 
                 'remember_token' => Str::random(10),
             ]);
         }
         
         // Assign admin role
-        $user->assignRole('Admin'); // If using Spatie Laravel Permission
+        $user->assignRole('admin'); // If using Spatie Laravel Permission
      
         $user->save();
     }
