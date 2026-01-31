@@ -1,0 +1,17 @@
+{
+  "name": "Care Pharmacy",
+  "short_name": "CarePharmacy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6777ef",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favIcon.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    }
+   
+  ]
+}
