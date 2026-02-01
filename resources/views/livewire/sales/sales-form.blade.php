@@ -929,26 +929,6 @@
             });
         </script>
 
-        @push('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                Echo.channel('mpesa.transactions')
-                    .listen('MpesaTransactionReceived', (payload) => {
-                        Livewire.dispatch('transactionReceived', payload);
-                        
-                        // Show notification
-                        if (payload.transaction.ResultCode == 0) {
-                            Toastify({
-                                text: "✅ M-PESA payment received!",
-                                duration: 3000,
-                                gravity: "top",
-                                position: "right",
-                                backgroundColor: "#10B981",
-                            }).showToast();
-                        }
-                    });
-            });
-        </script>
-        @endpush
+     
     </div>
 </div>

@@ -26,7 +26,8 @@ use Livewire\Attributes\On;
 enum TransactionType: string
 {
     case CASH = 'cash';
-    case MPESA = 'mpesa';
+    case MPESA = 'c2b_mpesa';
+    case SMS_MPESA = 'sms_mpesa';
     case CREDIT_SALE = 'credit_sale';
     case CREDIT_PAYMENT = 'credit_payment';
     case CARD = 'card';
@@ -179,14 +180,10 @@ class SalesForm extends Component
     {
         $this->saleId = $id;
 
-
-
         if ($id) {
             $sale = Sale::with(['saleItems.item', 'customer'])->find($id);
             $this->saleItems = $sale->saleItems;
             $this->sale = $sale;
-
-           
 
             if (!$sale->customer) {
                 $this->setWalkInCustomer();
@@ -194,8 +191,6 @@ class SalesForm extends Component
                 $this->calculateCustomerBalance();
             }
         }
-
-        //  dd($sale);
 
         $this->transactions = Transactions::orderBy('created_at', 'desc')->whereNull('sale_id')->where('type', '!=', 'credit_payment')->get()->toArray();
 
@@ -916,6 +911,7 @@ class SalesForm extends Component
             $transactions = Transactions::whereIn('id', $this->selectedTransactions)->get();
 
             foreach ($transactions as $transaction) {
+                
                 $transaction->update([
                     'sale_id' => $sale->id,
                 ]);
@@ -948,32 +944,75 @@ class SalesForm extends Component
         }
     }
 
-    #[On('echo:mpesa.transactions,MpesaTransactionReceived')]
-    public function handleTransaction($payload)
-    {
-        $data = $payload['transaction'];
 
-        if (is_string($data)) {
-            $data = json_decode($data, true);
+
+
+#[On('echo:mpesa.transactions,.MpesaTransactionReceived')]
+public function onMpesaTransactionReceived($payload)
+{
+    // Log::info('Livewire: Echo event received', $payload);
+
+    // Handle transaction in PHP
+    $this->handleTransaction($payload['transaction']);
+}
+
+    public function handleTransaction($data)
+    {
+       
+        Log::info('This is the data that is supposed to be processed');
+        Log::info($data);
+
+        if (!$data) {
+            $this->showAlert('error', 'PAYMENT NOT RECEIVED', 'No transaction data received.');
+            return;
         }
 
+        // If payload is a JSON string, decode it
+        if (is_string($data)) {
+            $data = json_decode($data, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->showAlert('error', 'PAYMENT NOT RECEIVED', 'Invalid transaction data.');
+                return;
+            }
+        }
+
+        //  Extract fields safely with defaults
         $Amount = $data['Amount'] ?? null;
-        $TransactionCode = $data['TransactionCode'] ?? null;
-        $ResultCode = $data['ResultCode'] ?? null;
-        $ResultDesc = $data['ResultDesc'] ?? null;
+        $TransactionCode = $data['TransactionCode'] ?? ($data['reference'] ?? null);
+        $ResultCode = $data['ResultCode'] ?? 0; // default 0 for SMS transactions
+        $ResultDesc = $data['ResultDesc'] ?? ($data['Message'] ?? 'Transaction received');
         $transactionID = $data['transactionID'] ?? null;
 
-        if ($ResultCode == 0) {
-            $formattedDate = Utils::formatDate($data['TransactionDate']);
+        // Use TransactionDate if available, otherwise fallback to Timestamp or now
+        $transactionDate = $data['TransactionDate'] ?? $data['Timestamp'] ?? now()->timestamp * 1000;
+        $formattedDate = Utils::formatDate($transactionDate);
 
+        //  Check if transaction already exists to avoid duplication
+        $transaction = null;
+        if ($transactionID) {
             $transaction = Transactions::find($transactionID);
-            if ($transaction) {
-                $transaction->type = TransactionType::MPESA->value;
-                $transaction->sale_id = $this->saleId;
-                $transaction->save();
-            }
+        }
 
-            $this->processCashOrMpesaSale();
+        if (!$transaction) {
+            // Optionally, you can try to find by TransactionCode and Amount if ID not present
+            $transaction = Transactions::where('transaction_code', $TransactionCode)
+                ->where('amount', $Amount)
+                ->first();
+        }
+
+        // 4️ Process successful transaction
+        if ($ResultCode == 0) {
+
+            // if ($transaction) {
+            //     $transaction->sale_id = $this->saleId;
+            //     $transaction->save();
+            // }
+
+            // Process sale logic (cash or mpesa)
+             if(!$transaction->type == 'sms_mpesa'){
+                 $this->processCashOrMpesaSale();
+             }
+
 
             $this->showAlert(
                 'success',
@@ -983,9 +1022,11 @@ class SalesForm extends Component
 
             $this->dispatch('sale-completed', message: 'Sale recorded successfully!');
         } else {
+            // 5️ Handle failed transactions
             $this->showAlert('error', 'PAYMENT NOT RECEIVED', $ResultDesc);
         }
 
+        // 6️ Redirect to the sale page
         return $this->redirect(route('sale.show', $this->saleId), navigate: true);
     }
 

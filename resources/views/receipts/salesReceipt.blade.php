@@ -154,7 +154,7 @@
     @foreach($sale->transactions as $txn)
         @php $totalPaid += $txn->amount; @endphp
         <div class="total-row">
-            <span>{{ ucfirst($txn->type == 0 ? 'Mpesa' : 'Cash') }}:</span>
+            <span>{{ ucfirst($txn->type == 'sms_mpesa' || $txn->type== 'mpesa' ? 'Mpesa' : 'Cash') }}:</span>
             <span>Ksh {{ number_format($txn->amount, 0) }}</span>
         </div>
     @endforeach
