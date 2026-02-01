@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <html lang="en" style="font-size: clamp(12px,0.9vw,16px)">
-    <title>Care Pharmacy</title>
+    <title>POS-seadztech</title>
 
     <!-- Meta Information -->
     <meta name="description" content="Care Pharmacy Management System">
