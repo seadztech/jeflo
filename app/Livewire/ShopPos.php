@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use Jantinnerezo\LivewireAlert\Facades\LivewireAlert;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ShopPos extends Component
 {
@@ -33,7 +34,6 @@ class ShopPos extends Component
     public $cartItems = [];
     public $totalAmount = 0;
     public $totalItems = 0;
-    public $discount = 0;
     public $cashAmount;
 
     // Payment
@@ -60,14 +60,18 @@ class ShopPos extends Component
     public $receiptData = [];
     public $isMpesa = false;
     public $isPaymentForm = false;
+    public $searching = false;
+    public $lastTransaction = null;
 
     // Data
     public $popularItems = [];
     public $categories = [];
+    public $debug = false; // For debugging
 
     protected $listeners = [
         'itemAdded' => '$refresh',
         'customerSelected' => 'selectCustomer',
+        'doSearch' => 'focusSearch',
     ];
 
     public function mount()
@@ -82,7 +86,24 @@ class ShopPos extends Component
         $this->loadCategories();
         $this->generateTransactionCode();
         $this->loadHoldTransactions();
+
+        // Debug: Check if we're loading items
+        if ($this->debug) {
+            Log::info('ShopPos initialized', [
+                'popularItems_count' => count($this->popularItems),
+                'categories_count' => count($this->categories),
+            ]);
+        }
     }
+
+    // Add this method for manual search update
+    public function updateSearch()
+    {
+        $this->searching = true;
+        $this->loadPopularItems();
+        $this->searching = false;
+    }
+
 
     public function toggleTransaction($trxId)
     {
@@ -105,11 +126,6 @@ class ShopPos extends Component
         $this->transactionCode = 'TRX-' . date('Ymd') . '-' . Str::upper(Str::random(6));
     }
 
-    // public function checkOut($sale_id){
-    //     dd($sale_id);
-
-    // }
-
     public function makeSale()
     {
         if (empty($this->cartItems)) {
@@ -117,116 +133,164 @@ class ShopPos extends Component
             return;
         }
 
-        $user  = User::where('id', Auth::user()->id)->whereNotNull('branch_id')->first();
+        $user = User::where('id', Auth::user()->id)->whereNotNull('branch_id')->first();
 
-        if(!$user){
-            $this->showAlert('error', "The currently logged in user does'nt have a branch assigned", 'error');
-             return;
-        } 
-
+        if (!$user) {
+            $this->showAlert('error', "The currently logged in user doesn't have a branch assigned", 'error');
+            return;
+        }
 
         DB::beginTransaction();
 
         $outOfStockItems = [];
-        // dd($this->customer_id ?? 1);
+
         try {
-            // 1. Create one Sale record at the beginning
+            // Create Sale record
             $sale = new Sale();
-            $sale->item_id = 
-            $sale->customer_id = $this->customer_id ?? 1;
-            $sale->total_amount = 0; 
+            $sale->customer_id = $this->selectedCustomer ?? 1;
+            $sale->total_amount = $this->totalAmount;
             $sale->actionBy = Auth::user()->id;
             $sale->status = 'pending';
-            $sale->branch_id = $user->branch->id;
+            $sale->branch_id = $user->branch_id;
             $sale->save();
 
+            // dd($this->cartItems);
 
             foreach ($this->cartItems as $cartItem) {
                 $requiredQty = $cartItem['quantity'];
                 $itemId = $cartItem['id'];
 
-                // Create salesItem linked to the one Sale
+                // Debug: Check the cart item structure
+                Log::info('Cart item data', [
+                    'cartItem' => $cartItem,
+                    'price' => $cartItem['price'] ?? null,
+                    'has_price' => isset($cartItem['price']),
+                ]);
+
+
+
+                // Create salesItem - ensure price is set
                 $saleItem = new salesItem();
                 $saleItem->sale_id = $sale->id;
                 $saleItem->stockin_id = 0;
                 $saleItem->item_id = $itemId;
                 $saleItem->quantity = $requiredQty;
-                $saleItem->unit_price = $cartItem['price'];
+                $saleItem->unit_price = $cartItem['price']; // Make sure this is not null
                 $saleItem->total_price = $requiredQty * $cartItem['price'];
                 $saleItem->status = 'pending';
                 $saleItem->save();
             }
 
-            if (!empty($outOfStockItems)) {
-                DB::rollBack();
-                $names = implode(', ', $outOfStockItems);
-                $this->showAlert('error', "Insufficient stock for the following items: [ $names ]", 'error');
-                return; 
-            } 
-
-    
             DB::commit();
 
-            // $this->showAlert('success', 'Payment processed .', 'success');
-            // $this->resetCart();
+            $this->lastTransaction = $sale->id;
 
             return $this->redirect(route('sale.show', $sale->id), navigate: true);
         } catch (\Exception $e) {
             DB::rollBack();
-            // dd($e->getMessage());
-            $this->showAlert('error', $e->getMessage(), 'error');
+            Log::error('Sale creation failed: ' . $e->getMessage());
+            $this->showAlert('error', 'Failed to process sale: ' . $e->getMessage(), 'error');
         }
     }
 
     protected function loadPopularItems()
     {
-        $this->popularItems = Items::query()
-            ->when($this->search, function ($query) {
-                $query->where('name', 'like', '%' . $this->search . '%')->orWhere('description', 'like', '%' . $this->search . '%');
-            })
-            ->when($this->selectedCategory, function ($query) {
-                $query->where('item_type_id', $this->selectedCategory);
-            })
-            ->limit(20)
-            ->get()
-            ->map(function ($item) {
+        try {
+            if ($this->debug) {
+                Log::info('Loading popular items', [
+                    'search' => $this->search,
+                    'selectedCategory' => $this->selectedCategory,
+                ]);
+            }
+
+            $query = Items::query()
+                ->when($this->selectedCategory, function ($q) {
+                    return $q->where('item_type_id', $this->selectedCategory);
+                })
+                ->when($this->search, function ($q) {
+                    $searchTerm = '%' . $this->search . '%';
+                    return $q->where(function ($query) use ($searchTerm) {
+                        $query->where('name', 'like', $searchTerm)
+                            ->orWhere('description', 'like', $searchTerm);
+                            
+                            
+                    });
+                })
+                ->orderBy('name')
+                ->limit(40);
+
+            // Get the items
+            $items = $query->get();
+
+            if ($this->debug) {
+                Log::info('Items query results', [
+                    'count' => $items->count(),
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings(),
+                ]);
+            }
+
+            // Transform to array format
+            $this->popularItems = $items->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
                     'price' => $item->unit_price,
-                    'image' => $item->image_url ?? asset('/images/toolbox.png'),
-                    'category' => $item->itemType->name ?? 'Uncategorized',
+                    'image' => $item->image_url ?? 'https://media.istockphoto.com/id/636061768/vector/modern-photograph-or-picture-icon-with-long-shadow.jpg?s=2048x2048&w=is&k=20&c=9zDG41z3ZrXk0hltnK4GFGe8EdKph2MtszvhIRKmifQ=',
+                    'category' => $item->item_type->name ?? 'Uncategorized',
+                    'description' => $item->description,
+                   
                 ];
-            });
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Failed to load popular items: ' . $e->getMessage());
+            $this->popularItems = [];
+        }
     }
 
     protected function loadCategories()
     {
-        $this->categories = ItemType::all()->map(function ($category) {
-            return [
-                'id' => $category->id,
-                'name' => $category->name,
-                'active' => $this->selectedCategory == $category->id,
-            ];
-        });
+        try {
+            $categories = ItemType::orderBy('name')->get();
+
+            $this->categories = $categories->map(function ($category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'active' => $this->selectedCategory == $category->id,
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Failed to load categories: ' . $e->getMessage());
+            $this->categories = [];
+        }
     }
 
-   public function setCategory($categoryId)
-{
-    // Handle "All" category (null)
-    if ($categoryId === 'null') {
-        $this->selectedCategory = null;
-    } else {
-        // Toggle category selection
-        $this->selectedCategory = $categoryId == $this->selectedCategory ? null : (int)$categoryId;
-    }
-    
-    $this->loadPopularItems();
-}
-    public function updatedSearch()
+    public function setCategory($categoryId)
     {
+        if ($categoryId === 'null' || $categoryId === null) {
+            $this->selectedCategory = null;
+        } else {
+            $this->selectedCategory = $categoryId == $this->selectedCategory ? null : (int)$categoryId;
+        }
+
         $this->loadPopularItems();
     }
+
+    // Update the existing updatedSearch method
+    public function updatedSearch($value)
+    {
+        $this->searching = true;
+
+        // Add a small delay to prevent too many queries
+        usleep(300000); // 300ms delay
+
+        $this->loadPopularItems();
+        $this->searching = false;
+    }
+
+
+
 
     public function updatedItemId($value)
     {
@@ -238,137 +302,157 @@ class ShopPos extends Component
 
     public function addToCart($itemId)
     {
-        $item = Items::findOrFail($itemId);
+        try {
+            $item = Items::findOrFail($itemId);
 
-        if (isset($this->cartItems[$itemId])) {
-            $this->cartItems[$itemId]['quantity'] += 1;
-        } else {
-            $this->cartItems[$itemId] = [
-                'id' => $item->id,
-                'name' => $item->name,
-                'price' => $item->unit_price,
-                'quantity' => 1,
-                'image' => $item->image_url ?? 'https://via.placeholder.com/150',
-            ];
+            if (isset($this->cartItems[$itemId])) {
+                $this->cartItems[$itemId]['quantity'] += 1;
+            } else {
+                $this->cartItems[$itemId] = [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'price' => $item->unit_price,
+                    'quantity' => 1,
+                    'image' => $item->image_url ?? 'https://via.placeholder.com/150',
+                ];
+            }
+
+            $this->updateCartTotals();
+        } catch (\Exception $e) {
+            Log::error('Failed to add item to cart: ' . $e->getMessage());
+            $this->showAlert('error', 'Failed to add item to cart', 'error');
         }
-
-        $this->updateCartTotals();
-        $this->dispatch('itemAdded');
-        $this->showAlert('Item Added', $item->name . ' added to cart', 'success');
     }
 
     public function removeFromCart($itemId)
     {
-        unset($this->cartItems[$itemId]);
-        $this->updateCartTotals();
-        $this->dispatch('itemAdded');
+        if (isset($this->cartItems[$itemId])) {
+            $itemName = $this->cartItems[$itemId]['name'];
+            unset($this->cartItems[$itemId]);
+            $this->updateCartTotals();
+           
+        }
     }
 
     public function incrementQuantity($itemId)
     {
-        $this->cartItems[$itemId]['quantity'] += 1;
-        $this->updateCartTotals();
-        $this->dispatch('itemAdded');
+        if (isset($this->cartItems[$itemId])) {
+            $this->cartItems[$itemId]['quantity'] += 1;
+            $this->updateCartTotals();
+            $this->dispatch('itemAdded');
+        }
     }
 
     public function decrementQuantity($itemId)
     {
-        if ($this->cartItems[$itemId]['quantity'] > 1) {
-            $this->cartItems[$itemId]['quantity'] -= 1;
-            $this->updateCartTotals();
-            $this->dispatch('itemAdded');
-        } else {
-            $this->removeFromCart($itemId);
+        if (isset($this->cartItems[$itemId])) {
+            if ($this->cartItems[$itemId]['quantity'] > 1) {
+                $this->cartItems[$itemId]['quantity'] -= 1;
+                $this->updateCartTotals();
+                $this->dispatch('itemAdded');
+            } else {
+                $this->removeFromCart($itemId);
+            }
         }
     }
 
     protected function updateCartTotals()
     {
         $this->totalItems = collect($this->cartItems)->sum('quantity');
-        $this->totalAmount =
-            collect($this->cartItems)->sum(function ($item) {
-                return $item['price'] * $item['quantity'];
-            }) - $this->discount;
-    }
-
-    public function updatedDiscount($value)
-    {
-        $this->validate([
-            'discount' => 'numeric|min:0|max:' . $this->totalAmount,
-        ]);
-
-        $this->updateCartTotals();
+        $this->totalAmount = collect($this->cartItems)->sum(function ($item) {
+            return $item['price'] * $item['quantity'];
+        });
     }
 
     public function holdTransaction()
     {
         if (empty($this->cartItems)) {
-            $this->showAlert('Hold Transaction', 'Cannot hold empty transaction', 'error');
+            $this->showAlert('error', 'Cannot hold empty transaction', 'error');
             return;
         }
 
-        DB::transaction(function () {
-            $transaction = Transactions::create([
-                'transaction_code' => $this->transactionCode,
-                'amount' => $this->totalAmount,
-                'type' => 'hold',
-                'customer_id' => $this->selectedCustomer,
-                'response' => json_encode([
-                    'discount' => $this->discount,
-                ]),
-            ]);
-
-            foreach ($this->cartItems as $item) {
-                salesItem::create([
-                    'transaction_id' => $transaction->id,
-                    'item_id' => $item['id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['price'],
-                    'total_price' => $item['price'] * $item['quantity'],
+        try {
+            DB::transaction(function () {
+                $transaction = Transactions::create([
+                    'transaction_code' => $this->transactionCode,
+                    'amount' => $this->totalAmount,
+                    'type' => 'hold',
+                    'customer_id' => $this->selectedCustomer,
+                    'response' => json_encode([
+                        'cart_items' => $this->cartItems,
+                    ]),
                 ]);
-            }
-        });
 
-        $this->resetCart();
-        $this->showAlert('success', 'Transaction has been held successfully', 'success');
+                foreach ($this->cartItems as $item) {
+                    salesItem::create([
+                        'transaction_id' => $transaction->id,
+                        'item_id' => $item['id'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['price'],
+                        'total_price' => $item['price'] * $item['quantity'],
+                    ]);
+                }
+            });
+
+            $this->resetCart();
+            $this->loadHoldTransactions();
+            $this->showAlert('success', 'Transaction has been held successfully', 'success');
+        } catch (\Exception $e) {
+            Log::error('Failed to hold transaction: ' . $e->getMessage());
+            $this->showAlert('error', 'Failed to hold transaction', 'error');
+        }
     }
 
     public function loadHoldTransactions()
     {
-        $this->holdTransactions = Transactions::latest()
-            ->get()
-            ->map(function ($transaction) {
-                return [
-                    'id' => $transaction->id,
-                    'code' => $transaction->transaction_code,
-                    'amount' => $transaction->amount,
-                    'customer' => $transaction->customer->name ?? 'Walk-in',
-                    // 'items' => $transaction->salesItems->count(),
-                    'date' => $transaction->created_at->format('M d, Y h:i A'),
-                ];
-            });
+        try {
+            $this->holdTransactions = Transactions::where('type', 'hold')
+                ->latest()
+                ->get()
+                ->map(function ($transaction) {
+                    return [
+                        'id' => $transaction->id,
+                        'code' => $transaction->transaction_code,
+                        'amount' => $transaction->amount,
+                        'customer' => $transaction->customer->name ?? 'Walk-in',
+                        'items' => $transaction->salesItems->count(),
+                        'date' => $transaction->created_at->format('M d, Y h:i A'),
+                    ];
+                })
+                ->toArray();
+        } catch (\Exception $e) {
+            Log::error('Failed to load hold transactions: ' . $e->getMessage());
+            $this->holdTransactions = [];
+        }
     }
 
     public function loadHoldTransaction($transactionId)
     {
-        $transaction = Transactions::with('salesItems.item')->findOrFail($transactionId);
+        try {
+            $transaction = Transactions::with('salesItems.item')->findOrFail($transactionId);
 
-        $this->cartItems = [];
-        foreach ($transaction->salesItems as $item) {
-            $this->cartItems[$item->item_id] = [
-                'id' => $item->item_id,
-                'name' => $item->item->name,
-                'price' => $item->unit_price,
-                'quantity' => $item->quantity,
-                'image' => $item->item->image_url ?? 'https://via.placeholder.com/150',
-            ];
+            $this->cartItems = [];
+            foreach ($transaction->salesItems as $item) {
+                $this->cartItems[$item->item_id] = [
+                    'id' => $item->item_id,
+                    'name' => $item->item->name,
+                    'price' => $item->unit_price,
+                    'quantity' => $item->quantity,
+                    'image' => $item->item->image_url ?? 'https://via.placeholder.com/150',
+                ];
+            }
+
+            $this->selectedCustomer = $transaction->customer_id;
+            $this->customerSearch = $transaction->customer->name ?? '';
+
+            $this->selectedHoldTransaction = $transactionId;
+            $this->updateCartTotals();
+
+            $this->showAlert('success', 'Hold transaction loaded', 'success');
+        } catch (\Exception $e) {
+            Log::error('Failed to load hold transaction: ' . $e->getMessage());
+            $this->showAlert('error', 'Failed to load hold transaction', 'error');
         }
-
-        $this->selectedCustomer = $transaction->customer_id;
-        $this->customerSearch = $transaction->customer->name ?? '';
-        $this->discount = json_decode($transaction->response)->discount ?? 0;
-        $this->selectedHoldTransaction = $transactionId;
-        $this->updateCartTotals();
     }
 
     public function processPayment($method)
@@ -380,55 +464,53 @@ class ShopPos extends Component
         }
     }
 
-    // Start of payments logic
+    public function confirmPayment()
+    {
+        $this->validate($this->getPaymentValidationRules());
 
-public function confirmPayment()
-{
-    $this->validate($this->getPaymentValidationRules());
+        if (!$this->splitPayment && $this->amountTendered < $this->totalAmount) {
+            $this->showAlert('error', 'Payment amount is less than total amount');
+            return;
+        }
 
-    // HARD BLOCK underpayment
-    if (!$this->splitPayment && $this->amountTendered < $this->totalAmount) {
-        $this->showAlert('error', 'Payment amount is less than total amount');
-        return;
+        try {
+            DB::transaction(function () {
+                $paymentData = $this->preparePaymentData();
+                $this->processPaymentTransaction($paymentData);
+            });
+
+            $this->showPaymentPage = false;
+            $this->showAlert('success', 'Payment processed successfully!', 'success');
+        } catch (\Exception $e) {
+            Log::error('Payment processing failed: ' . $e->getMessage());
+            $this->addError('paymentError', $e->getMessage());
+            $this->showAlert('error', 'Payment processing failed: ' . $e->getMessage(), 'error');
+        }
     }
 
-    try {
-        DB::transaction(function () {
-            $paymentData = $this->preparePaymentData();
-            $this->processPaymentTransaction($paymentData);
-        });
+    protected function preparePaymentData()
+    {
+        if ($this->splitPayment) {
+            return [
+                'method' => 'split',
+                'amount_received' => $this->splitAmount1 + $this->splitAmount2,
+                'change' => 0,
+                'details' => [
+                    ['method' => $this->splitMethod1, 'amount' => $this->splitAmount1],
+                    ['method' => $this->splitMethod2, 'amount' => $this->splitAmount2],
+                ],
+            ];
+        }
 
-        $this->showPaymentPage = false;
-        $this->showAlert('success', 'Payment processed successfully!', 'success');
-    } catch (\Exception $e) {
-        $this->addError('paymentError', $e->getMessage());
-    }
-}
-
-protected function preparePaymentData()
-{
-    if ($this->splitPayment) {
         return [
-            'method' => 'split',
-            'amount_received' => $this->splitAmount1 + $this->splitAmount2,
-            'change' => 0,
-            'details' => [
-                ['method' => $this->splitMethod1, 'amount' => $this->splitAmount1],
-                ['method' => $this->splitMethod2, 'amount' => $this->splitAmount2],
-            ],
+            'method' => $this->paymentMethod,
+            'amount_received' => $this->amountTendered,
+            'change' => $this->paymentMethod == 'cash'
+                ? $this->amountTendered - $this->totalAmount
+                : 0,
+            'mpesa_number' => $this->paymentMethod == 'mpesa' ? $this->mpesaNumber : null,
         ];
     }
-
-    return [
-        'method' => $this->paymentMethod,
-        'amount_received' => $this->amountTendered,
-        'change' => $this->paymentMethod == 'cash'
-            ? $this->amountTendered - $this->totalAmount
-            : 0,
-        'mpesa_number' => $this->paymentMethod == 'mpesa' ? $this->mpesaNumber : null,
-    ];
-}
-
 
     protected function processPaymentTransaction($paymentData)
     {
@@ -442,9 +524,9 @@ protected function preparePaymentData()
                 'payment_method' => $paymentData['method'],
                 'amount_received' => $paymentData['amount_received'],
                 'change' => $paymentData['change'] ?? 0,
-                'discount' => $this->discount,
                 'mpesa_number' => $paymentData['mpesa_number'] ?? null,
                 'split_details' => $paymentData['details'] ?? null,
+                'cart_items' => $this->cartItems,
             ]),
         ];
 
@@ -474,35 +556,35 @@ protected function preparePaymentData()
         $this->resetCart();
     }
 
-   protected function getPaymentValidationRules()
-{
-    $rules = [
-        'paymentMethod' => 'required|in:cash,mpesa,card,bank',
-    ];
-
-    if (!$this->splitPayment) {
-        $rules['amountTendered'] = 'required|numeric|min:' . $this->totalAmount;
-    }
-
-    if ($this->paymentMethod == 'mpesa') {
-        $rules['mpesaNumber'] = 'required|regex:/^254[0-9]{9}$/';
-    }
-
-    if ($this->splitPayment) {
+    protected function getPaymentValidationRules()
+    {
         $rules = [
-            'splitAmount1' => 'required|numeric|min:0.01',
-            'splitAmount2' => 'required|numeric|min:0.01',
-            'splitMethod1' => 'required|in:cash,mpesa,card,bank',
-            'splitMethod2' => 'required|in:cash,mpesa,card,bank',
+            'paymentMethod' => 'required|in:cash,mpesa,card,bank',
         ];
 
-        if (($this->splitAmount1 + $this->splitAmount2) != $this->totalAmount) {
-            throw new \Exception('Split payment must equal total amount.');
+        if (!$this->splitPayment) {
+            $rules['amountTendered'] = 'required|numeric|min:' . $this->totalAmount;
         }
-    }
 
-    return $rules;
-}
+        if ($this->paymentMethod == 'mpesa') {
+            $rules['mpesaNumber'] = 'required|regex:/^254[0-9]{9}$/';
+        }
+
+        if ($this->splitPayment) {
+            $rules = [
+                'splitAmount1' => 'required|numeric|min:0.01',
+                'splitAmount2' => 'required|numeric|min:0.01',
+                'splitMethod1' => 'required|in:cash,mpesa,card,bank',
+                'splitMethod2' => 'required|in:cash,mpesa,card,bank',
+            ];
+
+            if (($this->splitAmount1 + $this->splitAmount2) != $this->totalAmount) {
+                throw new \Exception('Split payment must equal total amount.');
+            }
+        }
+
+        return $rules;
+    }
 
     public function recordCashPayment()
     {
@@ -524,7 +606,7 @@ protected function preparePaymentData()
         $transaction->transaction_code = 'Cash';
         $transaction->save();
 
-        $action = 'Cash Payment  Record';
+        $action = 'Cash Payment Record';
 
         $description = "Successfully created $transaction->type of amount $transaction->amount";
 
@@ -533,7 +615,6 @@ protected function preparePaymentData()
         $this->showAlert('success', $action, $description);
 
         return $this->redirect(route('pos'), navigate: true);
-        $this->skipRender();
     }
 
     protected function prepareReceipt($transaction, $paymentData)
@@ -552,8 +633,7 @@ protected function preparePaymentData()
                 })
                 ->values()
                 ->toArray(),
-            'subtotal' => $this->totalAmount + $this->discount,
-            'discount' => $this->discount,
+            'subtotal' => $this->totalAmount,
             'total' => $this->totalAmount,
             'payment_method' => $paymentData['method'],
             'amount_received' => $paymentData['amount_received'],
@@ -575,13 +655,18 @@ protected function preparePaymentData()
         $this->cartItems = [];
         $this->totalAmount = 0;
         $this->totalItems = 0;
-        $this->discount = 0;
         $this->selectedCustomer = null;
         $this->customerSearch = '';
         $this->selectedHoldTransaction = null;
+        $this->amountTendered = 0;
+        $this->mpesaNumber = '';
+        $this->splitPayment = false;
+        $this->splitAmount1 = 0;
+        $this->splitAmount2 = 0;
         $this->generateTransactionCode();
         $this->dispatch('itemAdded');
         $this->showPaymentPage = false;
+        $this->showReceipt = false;
     }
 
     public function closeReceipt()
@@ -598,7 +683,12 @@ protected function preparePaymentData()
     {
         $this->isPaymentForm = !$this->isPaymentForm;
     }
-    // End of payments logic
+
+    public function focusSearch()
+    {
+        $this->dispatch('focus-search-input');
+    }
+
 
     public function searchCustomers()
     {
@@ -617,9 +707,40 @@ protected function preparePaymentData()
 
     public function render()
     {
+        $this->loadPopularItems();
+        // Debug output
+        if ($this->debug) {
+            Log::info('ShopPos render', [
+                'popularItems_count' => count($this->popularItems),
+                'search' => $this->search,
+                'selectedCategory' => $this->selectedCategory,
+            ]);
+        }
+
         return view('livewire.shop-pos', [
             'categories' => $this->categories,
             'popularItems' => $this->popularItems,
+
+            'searching' => $this->searching,
         ]);
+    }
+
+    // Debug method to test database connection
+    public function testDatabase()
+    {
+        try {
+            $count = Items::count();
+            $categories = ItemType::count();
+
+            Log::info('Database test', [
+                'items_count' => $count,
+                'categories_count' => $categories,
+            ]);
+
+            $this->showAlert('info', "Database test: Found $count items and $categories categories");
+        } catch (\Exception $e) {
+            Log::error('Database test failed: ' . $e->getMessage());
+            $this->showAlert('error', 'Database connection failed: ' . $e->getMessage());
+        }
     }
 }

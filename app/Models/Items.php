@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Items extends Model
 {
     //
-    protected $fillable = ['name', 'item_type_id'];
+    protected $fillable = ['name', 'item_type_id', 'item_id'];
 
     public function stockins(): HasMany
     {
