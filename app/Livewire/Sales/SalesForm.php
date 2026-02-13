@@ -979,22 +979,20 @@ public function onMpesaTransactionReceived($payload)
         //  Extract fields safely with defaults
         $Amount = $data['Amount'] ?? null;
         $TransactionCode = $data['TransactionCode'] ?? ($data['reference'] ?? null);
-        $ResultCode = $data['ResultCode'] ?? 0; // default 0 for SMS transactions
+        $ResultCode = $data['ResultCode'] ?? 0; 
         $ResultDesc = $data['ResultDesc'] ?? ($data['Message'] ?? 'Transaction received');
         $transactionID = $data['transactionID'] ?? null;
 
-        // Use TransactionDate if available, otherwise fallback to Timestamp or now
         $transactionDate = $data['TransactionDate'] ?? $data['Timestamp'] ?? now()->timestamp * 1000;
         $formattedDate = Utils::formatDate($transactionDate);
 
-        //  Check if transaction already exists to avoid duplication
         $transaction = null;
         if ($transactionID) {
             $transaction = Transactions::find($transactionID);
         }
 
         if (!$transaction) {
-            // Optionally, you can try to find by TransactionCode and Amount if ID not present
+           
             $transaction = Transactions::where('transaction_code', $TransactionCode)
                 ->where('amount', $Amount)
                 ->first();
@@ -1020,7 +1018,6 @@ public function onMpesaTransactionReceived($payload)
                 "$TransactionCode of Ksh $Amount has been received on $formattedDate"
             );
 
-            $this->dispatch('sale-completed', message: 'Sale recorded successfully!');
         } else {
             // 5️ Handle failed transactions
             $this->showAlert('error', 'PAYMENT NOT RECEIVED', $ResultDesc);

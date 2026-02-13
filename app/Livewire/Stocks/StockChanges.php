@@ -28,17 +28,22 @@ class StockChanges extends Component
     public $stockinQuantity;
     public $reason;
     public $stockin;
+    public $stockchange;
 
     public function mount($id)
     {
 
         // dd($id);
-        $this->stockinId = $id;
+        $this->stockinId = (int)$id;
         $this->model = 'App\Models\StockChange';
-        $this->stockin = stockins::with('item')->find($id);
+        // $this->stockchange = StockChange::with('stockin.item')->find($id);
+        $this->stockchange = StockChange::with('stockin.item')->where('stockins_id',$id)->first();
+        // dd($this->stockchange);
+        $this->stockin = $this->stockchange->stockin;
+
+
         $item = $this->stockin->item->name;
 
-        // dd($this->stockin);
         // $date = Carbon::parse($this->stockin->created_at)->format('l, jS F Y');
         // $date = Carbon::parse($this->stockin->created_at)->format('F Y');
 

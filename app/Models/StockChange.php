@@ -12,7 +12,7 @@ class StockChange extends Model
 
 
     public function stockin(){
-        return $this->belongsTo(stockins::class);
+        return $this->belongsTo(stockins::class, 'stockins_id');
     }
 
     public function user(){

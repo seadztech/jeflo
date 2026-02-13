@@ -1,4 +1,4 @@
-<div class="py-6 px-4 sm:px-6 max-w-7xl mx-auto">
+<div class="py-6 px-4 sm:px-6  mx-auto">
     <!-- Loading Indicator -->
     @if($isLoading)
         <div class="text-center py-12">
