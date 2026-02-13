@@ -725,22 +725,5 @@ class ShopPos extends Component
         ]);
     }
 
-    // Debug method to test database connection
-    public function testDatabase()
-    {
-        try {
-            $count = Items::count();
-            $categories = ItemType::count();
-
-            Log::info('Database test', [
-                'items_count' => $count,
-                'categories_count' => $categories,
-            ]);
-
-            $this->showAlert('info', "Database test: Found $count items and $categories categories");
-        } catch (\Exception $e) {
-            Log::error('Database test failed: ' . $e->getMessage());
-            $this->showAlert('error', 'Database connection failed: ' . $e->getMessage());
-        }
-    }
+   
 }

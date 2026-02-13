@@ -297,7 +297,11 @@
                                             </div>
                                         </div>
                                         
-                                        <div class="pt-2">
+                                        <div class="pt-2 flex items-center justify-between gap-x-4">
+                                            <button class="w-full bg-rose-700 text-white p-3 rounded-lg hover:bg-rose-700/70" wire:click='toggleCustomerForm'>
+                                                    <i class="fas fa-cancel"></i>
+                                                    Cancel
+                                            </button>
                                             <button wire:click="saveCustomer"
                                                 class="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                                                 <i class="fas {{ $isEditingCustomer ? 'fa-save' : 'fa-user-plus' }}"></i>

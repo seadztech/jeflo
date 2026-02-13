@@ -1,5 +1,5 @@
 <div>
-    <div class="w-full bg-white rounded shadow-md border-1 border-primary p-4">
+    <div class=" max-h-screen w-full bg-white rounded shadow-md border-1 border-primary p-4">
         <x-volt-livewire::spinner-component />
 
         @if (!$showPaymentPage)
