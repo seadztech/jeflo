@@ -1,4 +1,4 @@
-<div>
+<div class="border-2 border-primary p-4 shadow-lg">
     <div class="mx-auto px-4 py-4">
         <!-- Spinner -->
         <x-volt-livewire::spinner-component />
@@ -118,7 +118,7 @@
             <!-- Left Column: Customer & Transactions -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Customer Section -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-white rounded-xl shadow-sm border-s-4 border-primary overflow-hidden">
                     <div class="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                         <div class="flex justify-between items-center">
                             <h2 class="text-lg font-semibold text-gray-800">
@@ -166,7 +166,7 @@
                                             <input type="text"
                                                 wire:model.live="customerSearch"
                                                 placeholder="Type name, phone, or email..."
-                                                class="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
+                                                class="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-lg  focus:border-blue-500 transition-all duration-200">
                                             <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                         </div>
                                         
@@ -230,7 +230,7 @@
                                                 </label>
                                                 <div class="relative">
                                                     <input type="text" wire:model="customerName"
-                                                        class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                        class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg  focus:border-blue-500 transition-all duration-200"
                                                         placeholder="John Doe">
                                                     <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                                 </div>
@@ -245,7 +245,7 @@
                                                 </label>
                                                 <div class="relative">
                                                     <input type="text" wire:model="customerPhone"
-                                                        class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                        class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg  focus:border-blue-500 transition-all duration-200"
                                                         placeholder="07XXXXXXXX">
                                                     <i class="fas fa-phone-alt absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                                 </div>
@@ -261,7 +261,7 @@
                                             </label>
                                             <div class="relative">
                                                 <input type="email" wire:model="customerEmail"
-                                                    class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                    class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg  focus:border-blue-500 transition-all duration-200"
                                                     placeholder="email@example.com">
                                                 <i class="fas fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                             </div>
@@ -277,7 +277,7 @@
                                                 </label>
                                                 <div class="relative">
                                                     <input type="number" wire:model="creditLimit"
-                                                        class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                                        class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg  focus:border-blue-500 transition-all duration-200"
                                                         placeholder="0.00">
                                                     <i class="fas fa-money-bill-wave absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                                 </div>
@@ -427,7 +427,7 @@
                                                                             <div class="flex gap-2">
                                                                                 <div class="relative flex-1">
                                                                                     <input type="number" wire:model="creditPaymentAmount"
-                                                                                        class="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                                                                                        class="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
                                                                                         placeholder="Enter amount">
                                                                                     <i class="fas fa-coins absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                                                                 </div>
@@ -480,7 +480,7 @@
                 <!-- Transactions & Items Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Transactions Section -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border-s-4 border-danger overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                             <h2 class="text-lg font-semibold text-gray-800">
                                 <i class="fas fa-exchange-alt mr-2 text-green-600"></i>
@@ -644,7 +644,7 @@
             <!-- Right Column: Payment & Summary -->
             <div class="space-y-6">
                 <!-- Payment Summary Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-primary overflow-hidden">
                     <div class="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                         <h2 class="text-lg font-semibold text-gray-800">
                             <i class="fas fa-calculator mr-2 text-blue-600"></i>
@@ -681,7 +681,7 @@
                 </div>
 
                 <!-- Payment Method Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-white rounded-xl shadow-sm border-s-4 border-success overflow-hidden">
                     <div class="px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                         <h2 class="text-lg font-semibold text-gray-800">
                             <i class="fas fa-credit-card mr-2 text-green-600"></i>
@@ -725,7 +725,7 @@
                                         </label>
                                         <input type="text" wire:model.defer="mpesaPhone" maxlength="12"
                                             placeholder="07XXXXXXXX"
-                                            class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200">
+                                            class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring focus:ring-green-500 focus:border-green-500 transition-all duration-200">
                                         @error('mpesaPhone')
                                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                                         @enderror
@@ -746,7 +746,7 @@
                                             Cash Amount Received (Ksh)
                                         </label>
                                         <input type="number" step="0.01" wire:model="cashAmount"
-                                            class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                            class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg  focus:border-blue-500 transition-all duration-200"
                                             placeholder="0.00">
                                         @error('cashAmount')
                                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>

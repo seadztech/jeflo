@@ -254,80 +254,90 @@ class Reports extends Component
 
     protected function generateStockLevelsReport($params)
     {
-        $query = Items::select([
-            'items.id',
-            'items.name',
-            'items.unit_price',
-            'items.buyingPrice',
-            // 'categories.name as category_name',
-            'item_types.name as type_name',
-            DB::raw('COALESCE(SUM(stockins.quantity), 0) as total_stock_in'),
-            DB::raw('COALESCE(SUM(sales_items.quantity), 0) as total_sold'),
-            DB::raw('(COALESCE(SUM(stockins.quantity), 0) - COALESCE(SUM(sales_items.quantity), 0)) as current_stock')
-        ])
-            // ->leftJoin('categories', 'items.category_id', '=', 'categories.id')
-            ->leftJoin('item_types', 'items.item_type_id', '=', 'item_types.id')
-            ->leftJoin('stockins', function ($join) use ($params) {
-                $join->on('items.id', '=', 'stockins.item_id');
-                if ($params['branch_id']) {
-                    $join->where('stockins.branch_id', $params['branch_id']);
-                }
+        // --- Stock ledger subquery (single source of truth) ---
+        $stockLedgerSub = DB::table('stock_changes as sc')
+            ->join('stockins as si', 'sc.stockins_id', '=', 'si.id')
+            ->select(
+                'si.item_id',
+                DB::raw("
+                SUM(
+                    CASE
+                        WHEN sc.changeType = 'increment'
+                        THEN sc.quantity
+                        ELSE -sc.quantity
+                    END
+                ) as current_stock
+            ")
+            )
+            ->when(!empty($params['branch_id']), function ($q) use ($params) {
+                $q->where('si.branch_id', $params['branch_id']);
             })
-            ->leftJoin('sales_items', function ($join) use ($params) {
-                $join->on('items.id', '=', 'sales_items.item_id')
-                    ->join('sales', 'sales_items.sale_id', '=', 'sales.id')
-                    ->where('sales.status', 'completed');
-                if ($params['branch_id']) {
-                    $join->where('sales.branch_id', $params['branch_id']);
-                }
-            });
+            ->groupBy('si.item_id');
 
-        // if ($params['category_id']) {
-        //     $query->where('items.category_id', $params['category_id']);
-        // }
-
-        if ($params['item_type_id']) {
-            $query->where('items.item_type_id', $params['item_type_id']);
-        }
-
-        $items = $query->groupBy(
+        // --- Main query ---
+        $items = Items::select([
             'items.id',
             'items.name',
             'items.unit_price',
             'items.buyingPrice',
-            'item_types.name'
-        )
+            'item_types.name as type_name',
+            DB::raw('COALESCE(sl.current_stock, 0) as current_stock'),
+        ])
+            ->leftJoin('item_types', 'items.item_type_id', '=', 'item_types.id')
+            ->leftJoinSub($stockLedgerSub, 'sl', function ($join) {
+                $join->on('items.id', '=', 'sl.item_id');
+            })
+            ->when(!empty($params['item_type_id']), function ($q) use ($params) {
+                $q->where('items.item_type_id', $params['item_type_id']);
+            })
             ->orderBy('current_stock', 'ASC')
             ->get();
 
-        $this->headers = ['ID', 'Item Name',  'Type', 'Current Stock', 'Unit Price', 'Stock Value', 'Status'];
-        $this->reportData = $items->map(function ($item) {
-            $reorderLevel = 10; // Default reorder level
-            $currentStock = $item->current_stock;
+        // --- Report formatting ---
+        $this->headers = [
+            'ID',
+            'Item Name',
+            'Type',
+            'Current Stock',
+            'Unit Price',
+            'Stock Value',
+            'Status'
+        ];
+
+        $reorderLevel = 10;
+
+        $this->reportData = $items->map(function ($item) use ($reorderLevel) {
+
+            $currentStock = (int) $item->current_stock;
             $stockValue = $currentStock * $item->buyingPrice;
 
-            $status = 'In Stock';
             if ($currentStock <= 0) {
                 $status = 'Out of Stock';
             } elseif ($currentStock <= $reorderLevel) {
                 $status = 'Low Stock';
+            } else {
+                $status = 'In Stock';
             }
 
             return [
-                $item->id,
-                $item->name,
-                $item->type_name ?? 'N/A',
-                $currentStock,
-                number_format($item->unit_price, 2),
-                number_format($stockValue, 2),
-                $status,
+                'ID' => $item->id,
+                'Item Name' => $item->name,
+                'Type' => $item->type_name ?? 'N/A',
+                'Current Stock' => $currentStock,
+                'Unit Price' => number_format($item->unit_price, 2),
+                'Stock Value' => number_format($stockValue, 2),
+                'Status' => $status,
             ];
-        })->toArray();
+        })->values()->toArray();
 
-        $this->totalRecords = $items->count();
+        $this->totalRecords = count($this->reportData);
         $this->summaryTitle = 'Low Stock Items';
-        $this->summaryValue = collect($this->reportData)->where('Status', 'Low Stock')->count();
+
+        $this->summaryValue = collect($this->reportData)
+            ->where('Status', 'Low Stock')
+            ->count();
     }
+
 
     protected function generateTopSellingItemsReport($params)
     {
@@ -1042,77 +1052,102 @@ class Reports extends Component
 
     protected function generateItemsReport($params)
     {
+        // --- Stock ledger subquery (true stock calculation) ---
+        $stockLedgerSub = DB::table('stock_changes as sc')
+            ->join('stockins as si', 'sc.stockins_id', '=', 'si.id')
+            ->select(
+                'si.item_id',
+                DB::raw("
+                SUM(
+                    CASE
+                        WHEN sc.changeType = 'increment'
+                        THEN sc.quantity
+                        ELSE -sc.quantity
+                    END
+                ) as current_stock
+            ")
+            )
+            ->groupBy('si.item_id');
+
+        // --- Main query ---
         $query = Items::select([
             'items.id',
             'items.name',
             'items.unit_price',
             'items.buyingPrice',
-            // 'categories.name as category_name',
             'item_types.name as type_name',
-            DB::raw('COALESCE(SUM(stockins.quantity), 0) as stock_in'),
-            DB::raw('COALESCE(SUM(sales_items.quantity), 0) as stock_out'),
-            DB::raw('(COALESCE(SUM(stockins.quantity), 0) - COALESCE(SUM(sales_items.quantity), 0)) as current_stock'),
+            DB::raw('COALESCE(sl.current_stock, 0) as current_stock'),
             'items.created_at'
         ])
-            // ->leftJoin('categories', 'items.category_id', '=', 'categories.id')
             ->leftJoin('item_types', 'items.item_type_id', '=', 'item_types.id')
-            ->leftJoin('stockins', 'items.id', '=', 'stockins.item_id')
-            ->leftJoin('sales_items', function ($join) {
-                $join->on('items.id', '=', 'sales_items.item_id')
-                    ->join('sales', 'sales_items.sale_id', '=', 'sales.id')
-                    ->where('sales.status', 'completed');
+            ->leftJoinSub($stockLedgerSub, 'sl', function ($join) {
+                $join->on('items.id', '=', 'sl.item_id');
             });
 
-        if ($params['category_id']) {
+        // --- Filters ---
+        if (!empty($params['category_id'])) {
             $query->where('items.category_id', $params['category_id']);
         }
 
-        if ($params['item_type_id']) {
+        if (!empty($params['item_type_id'])) {
             $query->where('items.item_type_id', $params['item_type_id']);
         }
 
-        $items = $query->groupBy(
-            'items.id',
-            'items.name',
-            'items.unit_price',
-            'items.buyingPrice',
-            'item_types.name',
-            'items.created_at'
-        )
+        $items = $query
             ->orderBy('items.created_at', 'DESC')
             ->get();
 
-        $this->headers = ['ID', 'Name',  'Type', 'Selling Price', 'Cost Price', 'Margin', 'Current Stock', 'Stock Value', 'Date Created'];
+        // --- Report headers ---
+        $this->headers = [
+            'ID',
+            'Name',
+            'Type',
+            'Selling Price',
+            'Cost Price',
+            'Margin',
+            'Current Stock',
+            'Stock Value',
+            'Date Created'
+        ];
 
+        // --- Format report ---
         $this->reportData = $items->map(function ($item) {
+
             $costPrice = $item->buyingPrice ?? 0;
-            $margin = $costPrice > 0 ? (($item->unit_price - $costPrice) / $costPrice) * 100 : 0;
-            $stockValue = $item->current_stock * $costPrice;
+
+            $margin = $costPrice > 0
+                ? (($item->unit_price - $costPrice) / $costPrice) * 100
+                : 0;
+
+            $currentStock = (int) $item->current_stock;
+            $stockValue = $currentStock * $costPrice;
 
             return [
                 $item->id,
                 $item->name,
-
                 $item->type_name ?? 'N/A',
                 number_format($item->unit_price, 2),
                 number_format($costPrice, 2),
                 number_format($margin, 1) . '%',
-                $item->current_stock,
+                $currentStock,
                 number_format($stockValue, 2),
                 $item->created_at->format('Y-m-d'),
             ];
         })->toArray();
 
+        // --- Summary ---
         $this->totalRecords = $items->count();
         $this->summaryTitle = 'Average Margin';
 
         $totalMargin = collect($this->reportData)->sum(function ($item) {
-            return floatval(str_replace('%', '', $item[6]));
+            return floatval(str_replace('%', '', $item[5]));
         });
 
-        $this->summaryValue = $this->totalRecords > 0 ?
-            number_format($totalMargin / $this->totalRecords, 1) . '%' : '0%';
+        $this->summaryValue = $this->totalRecords > 0
+            ? number_format($totalMargin / $this->totalRecords, 1) . '%'
+            : '0%';
     }
+
 
     protected function generateTransactionsReport($params)
     {
