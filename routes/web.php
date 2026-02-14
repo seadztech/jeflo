@@ -7,6 +7,8 @@ use App\Http\Controllers\ReceiptController;
 use App\Livewire\Dashboard;
 use App\Livewire\Branches\Branches;
 use App\Livewire\Branches\BranchForm;
+use App\Livewire\Customers\CustomerForm;
+use App\Livewire\Customers\Customers;
 use App\Livewire\Items\Items;
 use App\Livewire\Items\ItemForm;
 use App\Livewire\Items\ItemTypes;
@@ -24,6 +26,7 @@ use App\Livewire\Transactions\Transactions;
 use App\Livewire\Transactions\TransactionForm;
 use App\Livewire\Users\Users;
 use App\Livewire\Users\UserForm;
+use GuzzleHttp\Middleware;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -137,6 +140,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('transaction/form/{id}', TransactionForm::class)
         ->middleware('permission:view transactions')
         ->name('transaction.show');
+
+     /*
+    |--------------------------------------------------------------------------
+    | Customers
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('customers', Customers::class)
+    // ->middleware('permission: view customers')
+    ->name('customers');
+
+
+    Route::get('customer/{id}', CustomerForm::class)
+    // ->middleware('permission: view customers')
+    ->name('customer.show');
+
+
 
     /*
     |--------------------------------------------------------------------------

@@ -140,6 +140,8 @@ class ShopPos extends Component
             return;
         }
 
+      
+
         DB::beginTransaction();
 
         $outOfStockItems = [];
@@ -157,6 +159,9 @@ class ShopPos extends Component
             // dd($this->cartItems);
 
             foreach ($this->cartItems as $cartItem) {
+                Log::info('Cart item data', [
+                   $this->cartItems
+                ]);
                 $requiredQty = $cartItem['quantity'];
                 $itemId = $cartItem['id'];
 
@@ -169,16 +174,16 @@ class ShopPos extends Component
 
 
 
-                // Create salesItem - ensure price is set
-                $saleItem = new salesItem();
-                $saleItem->sale_id = $sale->id;
-                $saleItem->stockin_id = 0;
-                $saleItem->item_id = $itemId;
-                $saleItem->quantity = $requiredQty;
-                $saleItem->unit_price = $cartItem['price']; // Make sure this is not null
-                $saleItem->total_price = $requiredQty * $cartItem['price'];
-                $saleItem->status = 'pending';
-                $saleItem->save();
+                // // Create salesItem - ensure price is set
+                // $saleItem = new salesItem();
+                // $saleItem->sale_id = $sale->id;
+                // $saleItem->stockin_id = 0;
+                // $saleItem->item_id = $itemId;
+                // $saleItem->quantity = $requiredQty;
+                // $saleItem->unit_price = $cartItem['price']; // Make sure this is not null
+                // $saleItem->total_price = $requiredQty * $cartItem['price'];
+                // $saleItem->status = 'pending';
+                // $saleItem->save();
             }
 
             DB::commit();

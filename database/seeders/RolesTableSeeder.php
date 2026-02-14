@@ -22,6 +22,11 @@ class RolesTableSeeder extends Seeder
             */
             $permissions = [
 
+                // Customers 
+                'create customer',
+                'view customer',
+                'edit customer',
+
                 // Dashboard
                 'view dashboard',
 
@@ -61,6 +66,8 @@ class RolesTableSeeder extends Seeder
                 // Transactions & Reports
                 'view transactions',
                 'view reports',
+
+
             ];
 
             foreach ($permissions as $permission) {

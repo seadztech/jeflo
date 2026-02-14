@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->integer('item_id');
-            $table->foreignId('customer_id')->default(1); // This is the walkin customer
+            // $table->integer('item_id');
+            $table->foreignId('customer_id')->default(1); 
             $table->foreignId('total_amount');
             $table->string('status');
             $table->string('payment_method');

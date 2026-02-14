@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Sale;
 
 class Customer extends Model
 {
     //
 
     public function sales(){
-        return $this->hasMany(salesItem::class);
+        return $this->hasMany(Sale::class);
     }
-    
+
 }
