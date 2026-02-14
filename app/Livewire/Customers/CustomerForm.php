@@ -3,13 +3,14 @@
 namespace App\Livewire\Customers;
 
 use App\Models\Customer;
+use App\Models\Transaction;
+use App\Models\Transactions;
 use Livewire\Component;
 
 class CustomerForm extends Component
 {
     public $customer;
     public $sales;
-    public $transactions; // will be flattened from sales
     public $ledger = [];
 
     public $salesTotals = [];
@@ -18,74 +19,76 @@ class CustomerForm extends Component
     public function mount($id)
     {
         // 🔹 Load customer with sales and their transactions
-        $this->customer = Customer::with(['sales.transactions'])->findOrFail($id);
+        $this->customer = Customer::with('sales.transactions')->findOrFail($id);
 
         $this->sales = $this->customer->sales;
-
-        // 🔹 Flatten all sale transactions into one collection and sort by date
-        $this->transactions = $this->sales
-            ->flatMap(fn($sale) => $sale->transactions)
-            ->sortBy('created_at')
-            ->values();
 
         $this->buildLedger();
         $this->calculateTotals();
     }
 
-  protected function buildLedger()
-{
-    $this->ledger = [];
+    protected function buildLedger()
+    {
+        $this->ledger = [];
 
-    $totalDebit = 0;
-    $totalCredit = 0;
+        $runningBalance = 0;
 
-    foreach ($this->transactions as $tx) {
-        if ($tx->type === 'credit_sale') {
-            $totalDebit += $tx->amount;
-        } elseif ($tx->type === 'credit_payment') {
-            $totalCredit += $tx->amount;
-        }
-    }
+        // 🔹 Flatten all sale transactions
+        $saleTransactions = $this->sales->flatMap(fn($sale) => $sale->transactions);
 
-    $openingBalance = $this->customer->current_balance - ($totalDebit - $totalCredit);
-    $runningBalance = $openingBalance;
+        // 🔹 Get standalone credit_payment transactions for this customer
+        $creditPayments = Transactions::where('type', 'credit_payment')->get()
+            ->filter(function($tx) {
+                $response = json_decode($tx->response, true);
+                return isset($response['customer_id']) && $response['customer_id'] == $this->customer->id;
+            });
 
-    // Opening Balance
-    $this->ledger[] = [
-        'date' => '-',
-        'reference' => '-',
-        'type' => 'Opening Balance',
-        'debit' => 0,
-        'credit' => 0,
-        'balance' => $runningBalance,
-        'is_opening' => true,
-    ];
+        // 🔹 Merge all transactions and sort by date
+        $allTransactions = $saleTransactions->merge($creditPayments)
+            ->sortBy('created_at')
+            ->values();
 
-    foreach ($this->transactions as $tx) {
+        // 🔹 Calculate opening balance
+        $totalDebit = $allTransactions->where('type', 'credit_sale')->sum('amount');
+        $totalCredit = $allTransactions->where('type', 'credit_payment')->sum('amount');
 
-        $debit = 0;
-        $credit = 0;
+        $openingBalance = $this->customer->current_balance - ($totalDebit - $totalCredit);
+        $runningBalance = $openingBalance;
 
-        if ($tx->type === 'credit_sale') {
-            $runningBalance += $tx->amount;
-            $debit = $tx->amount;
-        } elseif ($tx->type === 'credit_payment') {
-            $runningBalance -= $tx->amount;
-            $credit = $tx->amount;
-        }
-
+        // 🔹 Opening balance row
         $this->ledger[] = [
-            'date' => $tx->created_at,
-            'reference' => $tx->transaction_code,
-            'type' => $tx->type,
-            'debit' => $debit,
-            'credit' => $credit,
+            'date' => '-',
+            'reference' => '-',
+            'type' => 'Opening Balance',
+            'debit' => 0,
+            'credit' => 0,
             'balance' => $runningBalance,
-            'is_opening' => false,
+            'is_opening' => true,
         ];
-    }
-}
 
+        // 🔹 Add transactions to ledger
+        foreach ($allTransactions as $tx) {
+            $debit = $credit = 0;
+
+            if ($tx->type === 'credit_sale') {
+                $debit = $tx->amount;
+                $runningBalance += $tx->amount;
+            } elseif ($tx->type === 'credit_payment') {
+                $credit = $tx->amount;
+                $runningBalance -= $tx->amount;
+            }
+
+            $this->ledger[] = [
+                'date' => $tx->created_at,
+                'reference' => $tx->transaction_code,
+                'type' => $tx->type,
+                'debit' => $debit,
+                'credit' => $credit,
+                'balance' => $runningBalance,
+                'is_opening' => false,
+            ];
+        }
+    }
 
     protected function calculateTotals()
     {
@@ -109,7 +112,7 @@ class CustomerForm extends Component
         $this->ledgerTotals = [
             'debit' => $totalDebit,
             'credit' => $totalCredit,
-            'closing_balance' => $this->ledger[count($this->ledger) - 1]['balance'] ?? 0,
+            'closing_balance' => $this->ledger[count($this->ledger)-1]['balance'] ?? 0,
         ];
     }
 
