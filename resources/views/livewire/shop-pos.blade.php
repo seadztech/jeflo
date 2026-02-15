@@ -199,7 +199,7 @@
                                         src="{{ $item['image'] ?? 'https://media.istockphoto.com/id/636061768/vector/modern-photograph-or-picture-icon-with-long-shadow.jpg?s=2048x2048&w=is&k=20&c=9zDG41z3ZrXk0hltnK4GFGe8EdKph2MtszvhIRKmifQ=' }}"
                                         alt="{{ $item['name'] }}"
                                         loading="lazy"
-                                        onerror="this.src='https://via.placeholder.com/150'">
+                                        >
 
                                     <!-- Quick Add Number -->
                                     <div class="absolute top-2 left-2 w-6 h-6 flex items-center justify-center text-xs font-bold text-white bg-blue-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">

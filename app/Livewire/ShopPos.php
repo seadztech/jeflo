@@ -241,7 +241,7 @@ class ShopPos extends Component
                     'id' => $item->id,
                     'name' => $item->name,
                     'price' => $item->unit_price,
-                    'image' => $item->image_url ?? 'https://media.istockphoto.com/id/636061768/vector/modern-photograph-or-picture-icon-with-long-shadow.jpg?s=2048x2048&w=is&k=20&c=9zDG41z3ZrXk0hltnK4GFGe8EdKph2MtszvhIRKmifQ=',
+                    'image' => $item->image_url,
                     'category' => $item->item_type->name ?? 'Uncategorized',
                     'description' => $item->description,
                    
