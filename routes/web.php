@@ -183,6 +183,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:view receipts')
         ->name('sales.receipt.pdf');
 
+    Route::get('print/sales/{id}/receipt/pdf', [ReceiptController::class, 'print'])
+        ->middleware('permission:view receipts')
+        ->name('print.receipt.pdf');
+
     /*
     |--------------------------------------------------------------------------
     | Reports

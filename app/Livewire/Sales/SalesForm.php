@@ -707,7 +707,9 @@ class SalesForm extends Component
             return $this->processCreditSale();
         }
 
-        return $this->processCashOrMpesaSale();
+        $this->processCashOrMpesaSale();
+
+        return redirect()->route('print.receipt.pdf', $this->saleId);
     }
 
     private function processCreditSale()
@@ -1040,6 +1042,10 @@ public function onMpesaTransactionReceived($payload)
                 window.open("{$url}", "_blank", `width=\${width},height=\${height},top=\${top},left=\${left},scrollbars=yes,resizable=yes`);
             JS
         );
+    }
+
+    public function printReceipt(){
+        return route('print.receipt.pdf', $this->saleId);
     }
 
     public function viewReceipt()
