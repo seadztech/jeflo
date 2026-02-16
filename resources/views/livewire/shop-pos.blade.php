@@ -196,7 +196,7 @@
                                 <!-- Item Image -->
                                 <div class="relative w-full h-36 mb-3 overflow-hidden bg-gray-100 rounded-lg">
                                     <img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                        src="{{ $item['image'] ?? 'https://media.istockphoto.com/id/636061768/vector/modern-photograph-or-picture-icon-with-long-shadow.jpg?s=2048x2048&w=is&k=20&c=9zDG41z3ZrXk0hltnK4GFGe8EdKph2MtszvhIRKmifQ=' }}"
+                                        src="{{ $item['image'] ?? asset('itemAvator.jpg')}}"
                                         alt="{{ $item['name'] }}"
                                         loading="lazy"
                                         >
