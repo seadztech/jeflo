@@ -14,22 +14,42 @@ class SuperUserSeeder extends Seeder
      */
     public function run(): void
     {
-        $email = 'seadztech@gmail.com';
-        $user = User::where('email', $email)->first();
+        // Admin User 1 - Primary Admin
+        $email1 = 'seadztech@gmail.com';
+        $user1 = User::where('email', $email1)->first();
         
-        if ($user === null) {
-            $user = User::create([
+        if ($user1 === null) {
+            $user1 = User::create([
                 'name' => 'Super Admin',
-                'email' => $email,
+                'email' => $email1,
                 'email_verified_at' => now(),
                 'password' => Hash::make('password'), 
                 'remember_token' => Str::random(10),
             ]);
         }
         
-        // Assign admin role
-        $user->assignRole('Admin'); // If using Spatie Laravel Permission
-     
-        $user->save();
+        // Assign admin role to first user
+        $user1->assignRole('Admin');
+        $user1->save();
+
+        // Admin User 2 - Additional Admin
+        $email2 = 'admin@seadztech.co.ke'; // Change this to your desired email
+        $user2 = User::where('email', $email2)->first();
+        
+        if ($user2 === null) {
+            $user2 = User::create([
+                'name' => 'Admin User',
+                'email' => $email2,
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'), // Change this to a secure password
+                'remember_token' => Str::random(10),
+            ]);
+        }
+        
+        // Assign admin role to second user
+        $user2->assignRole('Admin');
+        $user2->save();
+
+        
     }
 }
