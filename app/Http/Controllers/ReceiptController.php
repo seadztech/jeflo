@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Mike42\Escpos\EscposImage;
+use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\Printer;
 
@@ -17,55 +18,64 @@ class ReceiptController extends Controller
     /**
      * Generate PDF receipt optimized for thermal printer
      */
-    public function generate($id)
-    {
-        try {
-            $sale = Sale::with([
-                'saleItems.item',
-                'transactions',
-                'user.branch'
-            ])->findOrFail($id);
+  public function generate($id)
+{
+    try {
+        $sale = Sale::with([
+            'saleItems.item',
+            'transactions',
+            'user.branch'
+        ])->findOrFail($id);
 
-            $company = Company::latest()->first();
+        $company = Company::latest()->first();
 
-            $html = view('receipts.salesReceipt', [
-                'sale'     => $sale,
-                'company'  => $company,
-            ])->render();
+        $html = view('receipts.salesReceipt', [
+            'sale'     => $sale,
+            'company'  => $company,
+        ])->render();
 
-            // Thermal printer paper size (58mm width)
-            // Convert mm to points: 1mm = 2.83465 points
-            $widthMm = 58;  // 58mm thermal paper width
-            $heightMm = 297; // Common receipt paper roll length
-            
-            $widthPoints = $widthMm * 2.83465;
-            $heightPoints = $heightMm * 2.83465;
-            
-            // Configure PDF for thermal printer
-            $pdf = Pdf::loadHTML($html)
-                ->setPaper([0, 0, $widthPoints, $heightPoints], 'portrait')
-                ->setOption('margin-bottom', 0)
-                ->setOption('margin-left', 0);
+        // Thermal printer paper size (80mm width)
+        $widthMm = 80;
+        $heightMm = 297;
 
-            return response($pdf->output(), 200)
-                ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="Receipt_' . $sale->id . '.pdf"');
+        $widthPoints = $widthMm * 2.83465;
+        $heightPoints = $heightMm * 2.83465;
 
-        } catch (\Throwable $e) {
-            Log::error('PDF Generation Failed', [
-                'error'   => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
-                'sale_id' => $id,
-            ]);
+        // Configure PDF for thermal printer with optimized settings
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper([0, 0, $widthPoints, $heightPoints], 'portrait')
+            ->setOption('margin-bottom', 0)
+            ->setOption('margin-left', 0)
+            ->setOption('margin-right', 0)
+            ->setOption('margin-top', 0)
+            ->setOption('dpi', 203) // Thermal printer DPI
+            ->setOption('enable_php', true)
+            ->setOption('debug-png', true)
+            ->setOption('debug-keep-temp', true)
+            ->setOption('pdf-backend', 'CPDF'); // Better for thermal
 
-            return back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
-        }
+        // Force black and white for better contrast
+        $pdf->setOption('default-media', 'print');
+        
+        return response($pdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="Receipt_' . $sale->id . '.pdf"')
+            ->header('Cache-Control', 'no-cache, must-revalidate');
+    } catch (\Throwable $e) {
+        Log::error('PDF Generation Failed', [
+            'error'   => $e->getMessage(),
+            'trace'   => $e->getTraceAsString(),
+            'sale_id' => $id,
+        ]);
+
+        return back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
     }
-    
+}
+
     /**
      * Direct HTML view for printing (bypasses PDF issues)
      */
- public function print($id)
+    public function print($id)
     {
         $printer = null;
 
@@ -79,7 +89,10 @@ class ReceiptController extends Controller
             $company = Company::latest()->first();
 
             // CONNECT TO USB PRINTER (WINDOWS)
-            $connector = new WindowsPrintConnector("ThermalPrinter"); // Your printer name
+            $connector = new WindowsPrintConnector("ThermalPrinter");
+
+            // $connector = new NetworkPrintConnector('192.168.123.100');
+
             $printer = new Printer($connector);
 
             // LOGO (top, minimal feed)
@@ -109,9 +122,9 @@ class ReceiptController extends Controller
             // ITEMS TABLE (80mm width)
             $printer->setJustification(Printer::JUSTIFY_LEFT);
             $printer->text(str_pad("Item", 26) .
-                           str_pad("Qty", 5, " ", STR_PAD_LEFT) .
-                           str_pad("Price", 8, " ", STR_PAD_LEFT) .
-                           str_pad("Total", 9, " ", STR_PAD_LEFT) . "\n");
+                str_pad("Qty", 5, " ", STR_PAD_LEFT) .
+                str_pad("Price", 8, " ", STR_PAD_LEFT) .
+                str_pad("Total", 9, " ", STR_PAD_LEFT) . "\n");
             $printer->text(str_repeat("-", 48) . "\n");
 
             $total = 0;
@@ -123,9 +136,9 @@ class ReceiptController extends Controller
                 $total += $lineTotal;
 
                 $line = str_pad($name, 26) .
-                        str_pad($qty, 5, " ", STR_PAD_LEFT) .
-                        str_pad(number_format($price, 0), 8, " ", STR_PAD_LEFT) .
-                        str_pad(number_format($lineTotal, 0), 9, " ", STR_PAD_LEFT) . "\n";
+                    str_pad($qty, 5, " ", STR_PAD_LEFT) .
+                    str_pad(number_format($price, 0), 8, " ", STR_PAD_LEFT) .
+                    str_pad(number_format($lineTotal, 0), 9, " ", STR_PAD_LEFT) . "\n";
 
                 $printer->text($line);
             }
@@ -163,7 +176,6 @@ class ReceiptController extends Controller
             $printer->cut();
 
             return back()->with('success', 'Receipt printed successfully');
-
         } catch (\Throwable $e) {
 
             Log::error('ESC/POS print failed', [
@@ -175,7 +187,6 @@ class ReceiptController extends Controller
                 'status' => 'error',
                 'message' => 'Printing failed: ' . $e->getMessage()
             ], 500);
-
         } finally {
             if ($printer) {
                 $printer->close();

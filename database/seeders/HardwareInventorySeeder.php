@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\ItemType;
 use App\Models\Items;
-use App\Models\Stockins;
+use App\Models\stockins;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
