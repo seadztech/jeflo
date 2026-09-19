@@ -36,8 +36,6 @@
                                 </button>
                                 @endif
                             </div>
-
-                          
                         </div>
 
                         <!-- Search Results Info -->
@@ -234,7 +232,6 @@
                                             <span class="text-sm font-bold text-blue-700">
                                                 Ksh {{ number_format($item['price'], 2) }}
                                             </span>
-                                         
                                         </div>
                                         <button class="p-2 text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-colors shadow-sm group-hover:shadow-md">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -306,15 +303,10 @@
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-4 py-3">
                                     <div class="flex items-center">
-                                        <!-- <div class="flex-shrink-0 w-10 h-10 mr-3 overflow-hidden bg-gray-200 rounded">
-                                                <img src="{{ $item['image'] }}" 
-                                                     alt="{{ $item['name'] }}" 
-                                                     class="object-cover w-full h-full">
-                                            </div> -->
                                         <div>
                                             <div class="font-medium text-gray-800">{{ $item['name'] }}</div>
                                             <div class="text-xs text-gray-500">
-                                                Ksh {{ number_format($item['price'], 2) }} each
+                                                Original: Ksh {{ number_format($item['original_price'] ?? $item['price'], 2) }} each
                                             </div>
                                         </div>
                                     </div>
@@ -335,7 +327,43 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-right font-medium">
-                                    Ksh {{ number_format($item['price'] * $item['quantity'], 2) }}
+                                    <div class="flex flex-col items-end">
+                                        {{-- Editable selling price --}}
+                                        <div class="flex items-center justify-end space-x-1">
+                                            <span class="text-xs text-gray-500">Ksh</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value="{{ $item['price'] }}"
+                                                wire:change="updateItemPrice({{ $item['id'] }}, $event.target.value)"
+                                                wire:key="price-{{ $item['id'] }}-{{ $item['price'] }}"
+                                                onfocus="this.select()"
+                                                onwheel="this.blur()"
+                                                class="w-24 px-2 py-1 text-right text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                                            >
+                                            @if(isset($item['original_price']) && $item['original_price'] != $item['price'])
+                                                <button
+                                                    wire:click="resetItemPrice({{ $item['id'] }})"
+                                                    class="p-1 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    title="Reset to original price (Ksh {{ number_format($item['original_price'], 2) }})">
+                                                    <i class="fas fa-undo text-xs"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+
+                                        {{-- Line total --}}
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            = Ksh {{ number_format($item['price'] * $item['quantity'], 2) }}
+                                        </div>
+
+                                        {{-- Original price strikethrough --}}
+                                        @if(isset($item['original_price']) && $item['original_price'] != $item['price'])
+                                            <div class="text-xs text-gray-400 line-through">
+                                                was Ksh {{ number_format($item['original_price'], 2) }}
+                                            </div>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <button wire:click="removeFromCart({{ $item['id'] }})"
@@ -397,8 +425,6 @@
                             </span>
                         </div>
                     </button>
-
-
                 </div>
 
                 <!-- Quick Stats -->
@@ -451,8 +477,12 @@
                     }
                 }
 
-                // Quick add by number (1-9)
+                // Quick add by number (1-9) — but skip if user is typing in an input
                 if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    const tag = (document.activeElement && document.activeElement.tagName) || '';
+                    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+                        return;
+                    }
                     const index = parseInt(e.key) - 1;
                     const items = document.querySelectorAll('.item-card');
                     if (items[index]) {
@@ -516,6 +546,17 @@
 
         .h-\[calc\(100vh-400px\)\]::-webkit-scrollbar-thumb:hover {
             background: #a1a1a1;
+        }
+
+        /* Hide number input spinners for a cleaner look */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
         }
     </style>
 </div>

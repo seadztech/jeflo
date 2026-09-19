@@ -4,11 +4,9 @@ namespace App\Models;
 
 use App\Traits\AlertTrait;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Http;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class Mpesa extends Model
 {
@@ -17,106 +15,116 @@ class Mpesa extends Model
 
     private $access_token;
 
-    private $consumerSecret;
-    private $consumerKey;
-
-    private $domain;
-
-    private $passkey;
-
-    private $stkUrl;
-
-    private $callbackUrl;
-
-    private $confirmationUrl;
-
-    private $validationUrl;
-
-    private $shortCode;
-
-    private $mpesa_env;
+    private string $consumerSecret;
+    private string $consumerKey;
+    private string $domain;
+    private string $passkey;
+    private string $callbackUrl;
+    private string $confirmationUrl;
+    private string $validationUrl;
+    private string $shortCode;
+    private string $partyB;
+    private string $accountReference;
+    private string $mpesa_env;
 
     public function __construct()
     {
-        $this->mpesa_env = env('MPESA_ENVIRONMENT');
+        parent::__construct();
+
+        $this->mpesa_env = env('MPESA_ENVIRONMENT', 'sandbox');
 
         $this->consumerSecret = env('MPESA_CONSUMER_SECRET');
         $this->consumerKey = env('MPESA_CONSUMER_KEY');
-        $this->domain = $this->mpesa_env == 'production' ? 'https://api.safaricom.co.ke' : 'https://sandbox.safaricom.co.ke';
+
+        $this->domain = $this->mpesa_env === 'production'
+            ? 'https://api.safaricom.co.ke'
+            : 'https://sandbox.safaricom.co.ke';
+
         $this->passkey = env('MPESA_PASSKEY');
         $this->shortCode = env('MPESA_SHORTCODE');
-        $this->partyB = env('NEXT_PUBLIC_MPESA_PARTYB');
+        $this->partyB = env('MPESA_PARTY_B');
         $this->callbackUrl = env('MPESA_STKCALLBACK_URL');
-        $this->refference = env('MPESA_ACCOUNT_REFERENCE');
+        $this->accountReference = env('MPESA_ACCOUNT_REFERENCE');
     }
 
     public function generateAccessToken()
     {
-        // dd($this->mpesa_env);/
+        $url = $this->domain . '/oauth/v1/generate?grant_type=client_credentials';
 
-        $consumerKey = $this->consumerKey;
-        $consumerSecret = $this->consumerSecret;
-        $domain = $this->domain;
-        $url = (string) $domain . '/oauth/v1/generate?grant_type=client_credentials';
-        $response = Http::withBasicAuth($consumerKey, $consumerSecret)->get($url);
-        $access_token = $response['access_token'];
+        $response = Http::withBasicAuth(
+            $this->consumerKey,
+            $this->consumerSecret
+        )->get($url);
 
-        return $access_token;
+        $response->throw();
+
+        return $response->json('access_token');
     }
 
-    public function sendSTKPush($phoneNumber, $amount, $transactionDescription)
-    {
+    public function sendSTKPush(
+        string $phoneNumber,
+        int $amount,
+        string $transactionDescription
+    ) {
         $utils = new Utils();
+
         $accessToken = $this->generateAccessToken();
 
         $phoneNumber = $utils->convertPhoneNumber($phoneNumber);
 
-        // dd($phoneNumber);
-        $BusinessShortCode = $this->shortCode;
-        $url = (string) $this->domain . '/mpesa/stkpush/v1/processrequest';
-        $PassKey = $this->passkey;
-        $Timestamp = Carbon::now()->format('YmdHis');
-        $password = base64_encode($BusinessShortCode . $PassKey . $Timestamp);
+        $timestamp = Carbon::now()->format('YmdHis');
 
-        $CallbackUrl = $this->callbackUrl;
-        $Amount = $amount;
-        $PartyA = (int) $phoneNumber;
-        $PartyB = $this->partyB;
-        $PhoneNumber = (int) $phoneNumber;
-        $AccountReference = $this->refference;
-        $TransactionDesc = $transactionDescription;
+        $password = base64_encode(
+            $this->shortCode .
+                $this->passkey .
+                $timestamp
+        );
 
         $info = [
-            'BusinessShortCode' => $BusinessShortCode,
+            'BusinessShortCode' => $this->shortCode,
             'Password' => $password,
-            'Timestamp' => $Timestamp,
+            'Timestamp' => $timestamp,
             'TransactionType' => 'CustomerPayBillOnline',
-            'Amount' => $Amount,
-            'PartyA' => $PartyA,
-            'PartyB' => $PartyB,
-            'PhoneNumber' => $PhoneNumber,
-            'CallBackURL' => $CallbackUrl,
-            'AccountReference' => $AccountReference,
-            'TransactionDesc' => $TransactionDesc,
+            'Amount' => $amount,
+            'PartyA' => (int) $phoneNumber,
+            'PartyB' => $this->partyB,
+            'PhoneNumber' => (int) $phoneNumber,
+            'CallBackURL' => $this->callbackUrl,
+            'AccountReference' => $this->accountReference,
+            'TransactionDesc' => $transactionDescription,
         ];
 
         try {
-            $response = Http::withToken($accessToken)->post($url, $info);
+            $url = $this->domain . '/mpesa/stkpush/v1/processrequest';
+
+            $response = Http::withToken($accessToken)
+                ->post($url, $info);
+
             $data = $response->json();
 
-            // dd($data['ResponseCode']);
-
-            if ($data['ResponseCode'] == '0') {
-                $this->showAlert('success', 'STK PUSH SUCCESS!', 'Customer has been sent an stk push');
+            if (($data['ResponseCode'] ?? null) === '0') {
+                $this->showAlert(
+                    'success',
+                    'STK PUSH SUCCESS!',
+                    'Customer has been sent an STK push'
+                );
             } else {
                 $this->showAlert(
                     'warning',
                     'STK PUSH Notification!',
-                    json_encode($response->json()), // show real Safaricom response
+                    json_encode($data)
                 );
             }
+
+            return $data;
         } catch (\Throwable $e) {
-            $this->showAlert('error', $e->getMessage(), 'STK PUSH ERROR !');
+            $this->showAlert(
+                'error',
+                $e->getMessage(),
+                'STK PUSH ERROR!'
+            );
+
+            throw $e;
         }
     }
 }

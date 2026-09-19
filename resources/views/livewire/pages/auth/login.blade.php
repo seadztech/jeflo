@@ -107,7 +107,7 @@ new #[Layout('layouts.guest')] class extends Component {
 
 
         <!-- Google Login -->
-        <div class="w-full mt-4">
+        <!-- <div class="w-full mt-4">
             <a
                 href="{{ route('redirect') }}"
                 class="border w-full flex items-center py-3 px-2 gap-4 text-xl bg-slate-50 rounded cursor-pointer">
@@ -117,7 +117,7 @@ new #[Layout('layouts.guest')] class extends Component {
                     class="w-5 h-5" />
                 <span>Continue with Google</span>
             </a>
-        </div>
+        </div> -->
 
         <!-- Register
         <div class="flex flex-wrap items-end justify-between mt-4">

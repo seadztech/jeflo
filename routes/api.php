@@ -10,3 +10,4 @@ Route::get('/user', function (Request $request) {
 
 
 Route::post('stk/callback', [PaymentController::class, 'stkCallback'])->name('stk.callback');
+Route::post('payments/sms', [PaymentController::class, 'stkCallback'])->name('stk.callback');

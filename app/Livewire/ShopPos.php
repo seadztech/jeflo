@@ -140,8 +140,6 @@ class ShopPos extends Component
             return;
         }
 
-      
-
         DB::beginTransaction();
 
         $outOfStockItems = [];
@@ -156,11 +154,9 @@ class ShopPos extends Component
             $sale->branch_id = $user->branch_id;
             $sale->save();
 
-            // dd($this->cartItems);
-
             foreach ($this->cartItems as $cartItem) {
                 Log::info('Cart item data', [
-                   $this->cartItems
+                    $this->cartItems
                 ]);
                 $requiredQty = $cartItem['quantity'];
                 $itemId = $cartItem['id'];
@@ -171,8 +167,6 @@ class ShopPos extends Component
                     'price' => $cartItem['price'] ?? null,
                     'has_price' => isset($cartItem['price']),
                 ]);
-
-
 
                 // Create salesItem - ensure price is set
                 $saleItem = new salesItem();
@@ -217,8 +211,6 @@ class ShopPos extends Component
                     return $q->where(function ($query) use ($searchTerm) {
                         $query->where('name', 'like', $searchTerm)
                             ->orWhere('description', 'like', $searchTerm);
-                            
-                            
                     });
                 })
                 ->orderBy('name')
@@ -244,7 +236,6 @@ class ShopPos extends Component
                     'image' => $item->image_url,
                     'category' => $item->item_type->name ?? 'Uncategorized',
                     'description' => $item->description,
-                   
                 ];
             })->toArray();
         } catch (\Exception $e) {
@@ -294,9 +285,6 @@ class ShopPos extends Component
         $this->searching = false;
     }
 
-
-
-
     public function updatedItemId($value)
     {
         if ($value) {
@@ -317,6 +305,7 @@ class ShopPos extends Component
                     'id' => $item->id,
                     'name' => $item->name,
                     'price' => $item->unit_price,
+                    'original_price' => $item->unit_price,
                     'quantity' => 1,
                     'image' => $item->image_url ?? 'https://via.placeholder.com/150',
                 ];
@@ -335,7 +324,6 @@ class ShopPos extends Component
             $itemName = $this->cartItems[$itemId]['name'];
             unset($this->cartItems[$itemId]);
             $this->updateCartTotals();
-           
         }
     }
 
@@ -367,6 +355,49 @@ class ShopPos extends Component
         $this->totalAmount = collect($this->cartItems)->sum(function ($item) {
             return $item['price'] * $item['quantity'];
         });
+    }
+
+    /**
+     * Update the price of a specific cart item.
+     * Stores the original price the first time it's edited so we can show strikethrough / reset.
+     */
+    public function updateItemPrice($itemId, $newPrice)
+    {
+        $newPrice = (float) $newPrice;
+
+        if ($newPrice < 0) {
+            $this->showAlert('error', 'Price cannot be negative.', 'error');
+            return;
+        }
+
+        if (!isset($this->cartItems[$itemId])) {
+            return;
+        }
+
+        // Store original price on first edit only
+        if (!isset($this->cartItems[$itemId]['original_price'])) {
+            $this->cartItems[$itemId]['original_price'] = $this->cartItems[$itemId]['price'];
+        }
+
+        $this->cartItems[$itemId]['price'] = $newPrice;
+
+        $this->updateCartTotals();
+    }
+
+    /**
+     * Reset a cart item's price back to its original value.
+     */
+    public function resetItemPrice($itemId)
+    {
+        if (!isset($this->cartItems[$itemId])) {
+            return;
+        }
+
+        if (isset($this->cartItems[$itemId]['original_price'])) {
+            $this->cartItems[$itemId]['price'] = $this->cartItems[$itemId]['original_price'];
+        }
+
+        $this->updateCartTotals();
     }
 
     public function holdTransaction()
@@ -442,6 +473,7 @@ class ShopPos extends Component
                     'id' => $item->item_id,
                     'name' => $item->item->name,
                     'price' => $item->unit_price,
+                    'original_price' => $item->unit_price,
                     'quantity' => $item->quantity,
                     'image' => $item->item->image_url ?? 'https://via.placeholder.com/150',
                 ];
@@ -694,7 +726,6 @@ class ShopPos extends Component
         $this->dispatch('focus-search-input');
     }
 
-
     public function searchCustomers()
     {
         return Customer::where('name', 'like', '%' . $this->customerSearch . '%')
@@ -725,10 +756,7 @@ class ShopPos extends Component
         return view('livewire.shop-pos', [
             'categories' => $this->categories,
             'popularItems' => $this->popularItems,
-
             'searching' => $this->searching,
         ]);
     }
-
-   
 }

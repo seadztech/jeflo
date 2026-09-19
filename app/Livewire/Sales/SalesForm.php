@@ -166,6 +166,11 @@ class SalesForm extends Component
     public $showReceipt = false;
     public $saleReceipt;
 
+    // ---- NEW: Inline item price editing ----
+    public $editingItemId = null;
+    public $editingPrice = null;
+    public $editingOriginalPrice = null;
+
     protected $rules = [
         'mpesaPhone' => 'nullable|regex:/^07\d{8}$/',
         'cashAmount' => 'nullable|numeric|min:1',
@@ -174,6 +179,7 @@ class SalesForm extends Component
         'customerEmail' => 'nullable|email',
         'creditLimit' => 'nullable|numeric|min:0',
         'creditPaymentAmount' => 'nullable|numeric|min:0',
+        'editingPrice' => 'nullable|numeric|min:0',
     ];
 
     public function mount($id)
@@ -192,7 +198,11 @@ class SalesForm extends Component
             }
         }
 
-        $this->transactions = Transactions::orderBy('created_at', 'desc')->whereNull('sale_id')->where('type', '!=', 'credit_payment')->get()->toArray();
+        $this->transactions = Transactions::orderBy('created_at', 'desc')
+            ->whereNull('sale_id')
+            ->where('type', '!=', 'credit_payment')
+            ->get()
+            ->toArray();
 
         $this->calculateTotals();
         $this->calculateAmountReceived();
@@ -611,6 +621,113 @@ class SalesForm extends Component
         $this->finalAmount = $this->totalAmount - $this->discount;
     }
 
+    // =====================================================================
+    //  NEW: Editable item selling price
+    // =====================================================================
+
+    /**
+     * Open the inline editor for a specific sale item.
+     */
+    public function editItemPrice($saleItemId)
+    {
+        $saleItem = $this->saleItems->firstWhere('id', $saleItemId);
+
+        if (!$saleItem) {
+            $this->showAlert('error', 'Error', 'Item not found.');
+            return;
+        }
+
+        $this->editingItemId = $saleItemId;
+        $this->editingPrice = $saleItem->unit_price;
+        $this->editingOriginalPrice = $saleItem->unit_price;
+    }
+
+    /**
+     * Persist the edited price to the sale_items table and update sale totals.
+     */
+    public function saveItemPrice()
+    {
+        $this->validate([
+            'editingPrice' => 'required|numeric|min:0',
+        ]);
+
+        if (!$this->editingItemId) {
+            return;
+        }
+
+        DB::beginTransaction();
+        try {
+            $saleItem = \App\Models\salesItem::find($this->editingItemId);
+
+            if (!$saleItem) {
+                throw new \Exception('Sale item not found.');
+            }
+
+            $oldPrice = $saleItem->unit_price;
+            $newPrice = (float) $this->editingPrice;
+
+            if ($newPrice < 0) {
+                throw new \Exception('Price cannot be negative.');
+            }
+
+            $saleItem->unit_price = $newPrice;
+            $saleItem->total_price = $newPrice * $saleItem->quantity;
+            $saleItem->save();
+
+            // Recalculate the sale's total amount
+            $sale = Sale::find($this->saleId);
+            $sale->total_amount = $sale->saleItems()->sum(DB::raw('unit_price * quantity'));
+            $sale->save();
+
+            DB::commit();
+
+            // Refresh local state so the UI updates immediately
+            $this->sale = $sale->fresh(['saleItems.item', 'customer']);
+            $this->saleItems = $this->sale->saleItems;
+
+            $this->editingItemId = null;
+            $this->editingPrice = null;
+            $this->editingOriginalPrice = null;
+
+            $this->recalculateSaleTotals();
+
+            $action = 'Sale Item Price Update';
+            $description = "Updated unit price for sale item #{$saleItem->id} from Ksh " .
+                number_format($oldPrice, 2) . " to Ksh " . number_format($newPrice, 2);
+            User::saveAuditTrail($action, $description);
+
+            $this->showAlert('success', 'Price Updated', $description);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->showAlert('error', 'Error', 'Failed to update price: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Close the inline editor without saving.
+     */
+    public function cancelItemPrice()
+    {
+        $this->editingItemId = null;
+        $this->editingPrice = null;
+        $this->editingOriginalPrice = null;
+    }
+
+    /**
+     * Recalculate sale totals, amount received, and balance after a price edit.
+     */
+    protected function recalculateSaleTotals()
+    {
+        $this->calculateTotals();
+        $this->calculateAmountReceived();
+
+        if ($this->sale && $this->sale->customer) {
+            $this->calculateAvailableCredit();
+        }
+    }
+
+    // =====================================================================
+
     public function setPaymentMethod($method)
     {
         $this->paymentMethod = $method;
@@ -913,7 +1030,7 @@ class SalesForm extends Component
             $transactions = Transactions::whereIn('id', $this->selectedTransactions)->get();
 
             foreach ($transactions as $transaction) {
-                
+
                 $transaction->update([
                     'sale_id' => $sale->id,
                 ]);
@@ -946,21 +1063,14 @@ class SalesForm extends Component
         }
     }
 
-
-
-
-#[On('echo:mpesa.transactions,.MpesaTransactionReceived')]
-public function onMpesaTransactionReceived($payload)
-{
-    // Log::info('Livewire: Echo event received', $payload);
-
-    // Handle transaction in PHP
-    $this->handleTransaction($payload['transaction']);
-}
+    #[On('echo:mpesa.transactions,.MpesaTransactionReceived')]
+    public function onMpesaTransactionReceived($payload)
+    {
+        $this->handleTransaction($payload['transaction']);
+    }
 
     public function handleTransaction($data)
     {
-       
         Log::info('This is the data that is supposed to be processed');
         Log::info($data);
 
@@ -981,7 +1091,7 @@ public function onMpesaTransactionReceived($payload)
         //  Extract fields safely with defaults
         $Amount = $data['Amount'] ?? null;
         $TransactionCode = $data['TransactionCode'] ?? ($data['reference'] ?? null);
-        $ResultCode = $data['ResultCode'] ?? 0; 
+        $ResultCode = $data['ResultCode'] ?? 0;
         $ResultDesc = $data['ResultDesc'] ?? ($data['Message'] ?? 'Transaction received');
         $transactionID = $data['transactionID'] ?? null;
 
@@ -994,7 +1104,7 @@ public function onMpesaTransactionReceived($payload)
         }
 
         if (!$transaction) {
-           
+
             $transaction = Transactions::where('transaction_code', $TransactionCode)
                 ->where('amount', $Amount)
                 ->first();
@@ -1003,23 +1113,15 @@ public function onMpesaTransactionReceived($payload)
         // 4️ Process successful transaction
         if ($ResultCode == 0) {
 
-            // if ($transaction) {
-            //     $transaction->sale_id = $this->saleId;
-            //     $transaction->save();
-            // }
-
-            // Process sale logic (cash or mpesa)
-             if(!$transaction->type == 'sms_mpesa'){
-                 $this->processCashOrMpesaSale();
-             }
-
+            if (!$transaction->type == 'sms_mpesa') {
+                $this->processCashOrMpesaSale();
+            }
 
             $this->showAlert(
                 'success',
                 'PAYMENT CONFIRMATION',
                 "$TransactionCode of Ksh $Amount has been received on $formattedDate"
             );
-
         } else {
             // 5️ Handle failed transactions
             $this->showAlert('error', 'PAYMENT NOT RECEIVED', $ResultDesc);
@@ -1044,7 +1146,8 @@ public function onMpesaTransactionReceived($payload)
         );
     }
 
-    public function printReceipt(){
+    public function printReceipt()
+    {
         return route('print.receipt.pdf', $this->saleId);
     }
 

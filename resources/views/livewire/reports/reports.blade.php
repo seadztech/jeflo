@@ -81,7 +81,7 @@
                                 <option value="">Select report type</option>
 
                                 <!-- Sales Reports -->
-                                <optgroup label="📊 Sales Reports">
+                                <optgroup label="Sales Reports">
                                     <option value="complete_sales">Complete Sales</option>
                                     <option value="incomplete_sales">Incomplete Sales</option>
                                     <option value="daily_sales_summary">Daily Sales Summary</option>
@@ -91,14 +91,14 @@
                                 </optgroup>
 
                                 <!-- Financial Reports -->
-                                <optgroup label="💰 Financial Reports">
+                                <optgroup label=" Financial Reports">
                                     <option value="profit_loss">Profit & Loss Statement</option>
                                     <option value="payment_method_summary">Payment Methods</option>
                                     <option value="transactions">Transactions Report</option>
                                 </optgroup>
 
                                 <!-- Inventory Reports -->
-                                <optgroup label="📦 Inventory Reports">
+                                <optgroup label=" Inventory Reports">
                                     <option value="items">Items Master List</option>
                                     <option value="stock_levels">Stock Levels</option>
                                     <option value="expiring_items">Expiring Items</option>
@@ -106,7 +106,7 @@
                                 </optgroup>
 
                                 <!-- Customer Reports -->
-                                <optgroup label="👥 Customer Reports">
+                                <optgroup label=" Customer Reports">
                                     <option value="customers">Customer Database</option>
                                     <option value="customer_purchases">Customer Purchase History</option>
                                     <option value="loyalty_summary">Customer Loyalty</option>
@@ -225,9 +225,9 @@
                                         <i class="fas fa-chart-pie text-2xl text-blue-400"></i>
                                     </div>
                                 </div>
-                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow">
+                                <!-- <div class="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow">
                                     <i class="fas fa-bolt text-white text-xs"></i>
-                                </div>
+                                </div> -->
                             </div>
                             <p class="mt-4 text-lg font-bold text-gray-700">Ready for Insights?</p>
                             <p class="mt-1 text-gray-500 max-w-md text-center text-sm">Generate detailed reports to analyze sales, inventory, profits, and customer behavior</p>

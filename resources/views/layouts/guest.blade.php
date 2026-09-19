@@ -93,10 +93,12 @@
                     </div>
                     <div class="w-full shadow-none card sm:my-12">
                         <div class="card-body !p-10">
-                            <div class="mb-8 text-center">
+
+                        <h1 class="text-center text-2xl font-extralight">SeadzTech POS</h1>
+                            <!-- <div class="mb-8 text-center">
                                 <a href="#"><img src="../assets/images/logo-dark.svg" alt="img"
                                         class="mx-auto auth-logo" /></a>
-                            </div>
+                            </div> -->
                             {{ $slot }}
                         </div>
                     </div>

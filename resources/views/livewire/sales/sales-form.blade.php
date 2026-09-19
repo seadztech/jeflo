@@ -106,13 +106,11 @@
                         Print Receipt
                     </a>
 
-
                     <a href="{{ route('pos') }}"
                         class="py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
                         <i class="fas fa-home"></i>
                         Back to POS
                     </a>
-
                 </div>
             </div>
         </div>
@@ -583,36 +581,82 @@
                             @if(count($saleItems) > 0)
                             <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
                                 @foreach ($saleItems as $saleItem)
-                                <div class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-150">
-                                    <div class="flex-1">
-                                        <div class="flex items-center gap-3 mb-1">
-                                            <div class="p-2 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg">
+                                <div class="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-150"
+                                     wire:key="sale-item-{{ $saleItem->id }}">
+
+                                    {{-- Item name + unit price --}}
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                                            <div class="p-2 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg shrink-0">
                                                 <i class="fas fa-box text-blue-600"></i>
                                             </div>
-                                            <div>
-                                                <h4 class="text-sm font-medium text-gray-900">{{ $saleItem->item->name ?? 'N/A' }}</h4>
+                                            <div class="min-w-0">
+                                                <h4 class="text-sm font-medium text-gray-900 truncate">{{ $saleItem->item->name ?? 'N/A' }}</h4>
                                                 <p class="text-xs text-gray-500">
-                                                    Unit Price: Ksh {{ number_format($saleItem->unit_price, 2) }}
+                                                    Unit: Ksh {{ number_format($saleItem->unit_price, 2) }} × {{ $saleItem->quantity }}
                                                 </p>
                                             </div>
+                                        </div>
+
+                                        {{-- Total + edit button (mobile-friendly) --}}
+                                        <div class="text-right shrink-0">
+                                            <p class="text-sm font-bold text-blue-700">
+                                                Ksh {{ number_format($saleItem->total_price, 2) }}
+                                            </p>
+
+                                            @if($sale->status === 'pending' && $editingItemId !== $saleItem->id)
+                                                <button wire:click="editItemPrice({{ $saleItem->id }})"
+                                                        class="mt-2 inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 active:bg-blue-200 transition-colors"
+                                                        title="Edit unit price">
+                                                    <i class="fas fa-pen text-[11px]"></i>
+                                                    Edit Price
+                                                </button>
+                                            @endif
                                         </div>
                                     </div>
 
-                                    <div class="text-right">
-                                        <div class="flex items-center gap-3">
-                                            <div class="text-center">
-                                                <span class="text-xs text-gray-500">Qty</span>
-                                                <p class="text-sm font-semibold text-gray-900">{{ $saleItem->quantity }}</p>
+                                    {{-- Inline price editor (mobile-friendly) --}}
+                                    @if($sale->status === 'pending' && $editingItemId === $saleItem->id)
+                                        <div class="mt-3 pt-3 border-t border-dashed border-blue-200">
+                                            <label class="block text-xs font-medium text-gray-600 mb-1.5">
+                                                New unit price (Ksh)
+                                            </label>
+
+                                            <div class="flex flex-col sm:flex-row gap-2">
+                                                <div class="relative flex-1">
+                                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Ksh</span>
+                                                    <input type="number"
+                                                           step="0.01"
+                                                           min="0"
+                                                           wire:model="editingPrice"
+                                                           wire:keydown.enter="saveItemPrice"
+                                                           wire:keydown.escape="cancelItemPrice"
+                                                           onfocus="this.select()"
+                                                           onwheel="this.blur()"
+                                                           inputmode="decimal"
+                                                           class="w-full pl-10 pr-3 py-2.5 text-sm border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                                                           autofocus>
+                                                </div>
+
+                                                <div class="flex gap-2 sm:flex-shrink-0">
+                                                    <button wire:click="saveItemPrice"
+                                                            class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-lg transition-colors">
+                                                        <i class="fas fa-check text-xs"></i>
+                                                        Save
+                                                    </button>
+                                                    <button wire:click="cancelItemPrice"
+                                                            class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors">
+                                                        <i class="fas fa-times text-xs"></i>
+                                                        Cancel
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div class="w-px h-8 bg-gray-200"></div>
-                                            <div class="text-center">
-                                                <span class="text-xs text-gray-500">Total</span>
-                                                <p class="text-sm font-bold text-blue-700">
-                                                    Ksh {{ number_format($saleItem->total_price, 2) }}
-                                                </p>
-                                            </div>
+
+                                            @error('editingPrice')
+                                                <p class="text-xs text-red-600 mt-1.5">{{ $message }}</p>
+                                            @enderror
                                         </div>
-                                    </div>
+                                    @endif
                                 </div>
                                 @endforeach
                             </div>
@@ -910,28 +954,45 @@
         </div>
         @endif
 
-
-
-
-
         <!-- JavaScript -->
         <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
         <script>
+            // Fallback beep using Web Audio API (no file needed)
+            function playSuccessBeep() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
+
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.35);
+                } catch (e) {
+                    console.log("Beep failed:", e);
+                }
+            }
+
             Livewire.on('sale-completed', (data) => {
                 // Confetti animation
                 confetti({
                     particleCount: 150,
                     spread: 100,
-                    origin: {
-                        y: 0.6
-                    }
+                    origin: { y: 0.6 }
                 });
 
-                // Play success sound
-                const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3');
-                audio.play().catch(e => console.log("Audio play failed:", e));
+                // Try self-hosted sound first, fall back to a Web Audio beep
+                const audio = new Audio('{{ asset("sounds/sale-complete.mp3") }}');
+                audio.volume = 0.6;
+                audio.play().catch(() => playSuccessBeep());
 
                 // Scroll to top
                 window.scrollTo({
@@ -940,7 +1001,5 @@
                 });
             });
         </script>
-
-
     </div>
 </div>
