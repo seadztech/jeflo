@@ -39,7 +39,7 @@
             </div>
 
             <form wire:submit.prevent="{{ $isCreate ? 'save' : 'update' }}" enctype="multipart/form-data">
-                <div class="p-8 mx-auto shadow-xl border-2 border-primary rounded-2xl">
+                <div class="p-8 mx-auto shadow-xl border border-primary rounded-2xl">
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 
                         <!-- Image Upload & Preview Section -->
@@ -48,7 +48,7 @@
                             <div class="flex flex-col items-center justify-center gap-6 md:flex-row">
                                 <!-- Image Preview -->
                                 <div class="w-full md:w-1/3">
-                                    <div class="relative overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg h-64">
+                                    <div class="relative overflow-hidden bg-gray-100 border border-dashed border-gray-300 rounded-lg h-64">
                                         @if($image)
                                         <!-- Show temporary preview when new image is selected -->
                                         <img src="{{ $image->temporaryUrl() }}"
@@ -109,7 +109,7 @@
                                                 id="image_upload"
                                                 wire:model="image"
                                                 accept="image/*"
-                                                class="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                class="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:outline-none  focus:ring-blue-500 focus:border-blue-500">
                                             @error('image')
                                             <span class="text-sm text-red-600">{{ $message }}</span>
                                             @enderror
@@ -157,10 +157,10 @@
 
                             <input type="text" x-model="search" @focus="open = true" @click.away="open = false"
                                 placeholder="Search item type..."
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }} w-full px-4 py-2 border rounded shadow-sm focus:ring @error('item_type_id') border-red-500 ring-red-500 @enderror" />
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }} w-full px-4 py-2 border rounded shadow-sm @error('item_type_id') border-red-500 ring-red-500 @enderror cursor-pointer" />
 
                             <ul x-show="open"
-                                class="absolute z-10 w-full mt-1 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg max-h-60">
+                                class="absolute z-10 w-full mt-1 overflow-y-auto bg-white border border-gray-500 rounded shadow-lg max-h-60">
                                 <template
                                     x-for="type in filtered.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))"
                                     :key="type.id">
@@ -169,7 +169,7 @@
                                     search = type.name;
                                     open = false;
                                 "
-                                        class="px-4 py-2 cursor-pointer hover:bg-blue-100" x-text="type.name"></li>
+                                        class="px-4 py-2 cursor-pointer hover:bg-blue-200" x-text="type.name"></li>
                                 </template>
                             </ul>
 
@@ -183,7 +183,7 @@
                             <label for="name" class="block text-sm font-medium text-gray-700">Item Name</label>
                             <input {{ $isView ? 'disabled' : '' }} type="text" id="name" wire:model="name"
                                 placeholder="Enter Item name E.g Panadol"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500
                         @error('name') border-red-500 ring-red-500 @enderror" />
 
                             @error('name')
@@ -192,17 +192,7 @@
                         </div>
 
                         <!-- Item Strength (Optional) -->
-                        <div>
-                            <label for="strength" class="block text-sm font-medium text-gray-700">Strength</label>
-                            <input {{ $isView ? 'disabled' : '' }} type="text" id="strength" wire:model="strength"
-                                placeholder="Enter strength (e.g., 500mg)"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
-                        @error('strength') border-red-500 ring-red-500 @enderror" />
-
-                            @error('strength')
-                            <span class="text-sm text-red-600">{{ $message }}</span>
-                            @enderror
-                        </div>
+                       
 
                         <!-- Buying Price -->
                         <div>
@@ -210,7 +200,7 @@
                             <input {{ $isView ? 'disabled' : '' }} type="number" id="buyingPrice" wire:model="buyingPrice"
                                 placeholder="Enter buying price"
                                 step="0.01"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500
                         @error('buyingPrice') border-red-500 ring-red-500 @enderror" />
 
                             @error('buyingPrice')
@@ -224,7 +214,7 @@
                             <input {{ $isView ? 'disabled' : '' }} type="number" id="unit_price" wire:model="unit_price"
                                 placeholder="Enter selling price"
                                 step="0.01"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500
                         @error('unit_price') border-red-500 ring-red-500 @enderror" />
 
                             @error('unit_price')
@@ -237,7 +227,7 @@
                             <label for="supplier" class="block text-sm font-medium text-gray-700">Supplier</label>
                             <input {{ $isView ? 'disabled' : '' }} type="text" id="supplier" wire:model="supplier"
                                 placeholder="Enter supplier name"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500
                         @error('supplier') border-red-500 ring-red-500 @enderror" />
 
                             @error('supplier')
@@ -246,17 +236,17 @@
                         </div>
 
                         <!-- Manufacturer -->
-                        <div>
+                        <!-- <div>
                             <label for="manufacturer" class="block text-sm font-medium text-gray-700">Manufacturer</label>
                             <input {{ $isView ? 'disabled' : '' }} type="text" id="manufacturer" wire:model="manufacturer"
                                 placeholder="Enter manufacturer name"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500
                         @error('manufacturer') border-red-500 ring-red-500 @enderror" />
 
                             @error('manufacturer')
                             <span class="text-sm text-red-600">{{ $message }}</span>
                             @enderror
-                        </div>
+                        </div> -->
 
                         <!-- Description -->
                         <div class="md:col-span-2 lg:col-span-3">
@@ -264,7 +254,7 @@
                             <textarea {{ $isView ? 'disabled' : '' }} id="description" wire:model="description"
                                 placeholder="Enter item description"
                                 rows="4"
-                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                                class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500
                         @error('description') border-red-500 ring-red-500 @enderror"></textarea>
 
                             @error('description')
@@ -279,7 +269,7 @@
 
             @if ($isView)
             <!-- Stockin section -->
-            <div class="text-right w-full my-4 border-2 mb-2">
+            <div class="text-right w-full my-4 border mb-2">
                 <button type="button" wire:click="addStockin"
                     class="btn {{ !$isAddStockin ? 'btn-primary' : 'btn-warning' }} inline-flex items-center gap-2">
 
@@ -313,7 +303,7 @@
                                     id="batch_id"
                                     wire:model="batch_id"
                                     readonly
-                                    class="w-full px-4 py-2 font-mono font-bold text-center text-gray-800 bg-gray-100 border border-gray-300 rounded-lg shadow-sm cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                    class="w-full px-4 py-2 font-mono font-bold text-center text-gray-800 bg-gray-100 border border-gray-300 rounded-lg shadow-sm cursor-not-allowed focus:outline-none  focus:ring-blue-500" />
                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                     <i class="text-gray-500 fa fa-lock"></i>
                                 </div>
@@ -335,7 +325,7 @@
                                 <select
                                     id="branch_id"
                                     wire:model="branch_id"
-                                    class=" w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('branch_id') border-red-500 ring-red-500 @enderror">
+                                    class=" w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500 @error('branch_id') border-red-500 ring-red-500 @enderror">
 
 
                                     <option value="">-- Select Branch --</option>
@@ -385,7 +375,7 @@
                             <input type="number" id="stockinQuantity" wire:model="stockinQuantity"
                                 placeholder="Enter quantity"
                                 min="1"
-                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('stockinQuantity') border-red-500 ring-red-500 @enderror" />
+                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500 @error('stockinQuantity') border-red-500 ring-red-500 @enderror" />
                             @error('stockinQuantity')
                             <span class="text-sm text-red-600">{{ $message }}</span>
                             @enderror
@@ -397,7 +387,7 @@
                                 class="block text-sm font-medium text-gray-700">Supplier Name</label>
                             <input type="text" id="stockin_supplier" wire:model="stockin_supplier"
                                 placeholder="Enter supplier name"
-                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('stockin_supplier') border-red-500 ring-red-500 @enderror" />
+                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500 @error('stockin_supplier') border-red-500 ring-red-500 @enderror" />
                             @error('stockin_supplier')
                             <span class="text-sm text-red-600">{{ $message }}</span>
                             @enderror
@@ -411,7 +401,7 @@
                                 id="expiry_date"
                                 wire:model="expiry_date"
                                 min="{{ date('Y-m-d', strtotime('+1 day')) }}"
-                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('expiry_date') border-red-500 ring-red-500 @enderror" />
+                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500 @error('expiry_date') border-red-500 ring-red-500 @enderror" />
                             @error('expiry_date')
                             <span class="text-sm text-red-600">{{ $message }}</span>
                             @enderror
@@ -423,7 +413,7 @@
                             <textarea id="additional_info" wire:model="additional_info"
                                 placeholder="Enter any additional information"
                                 rows="3"
-                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('additional_info') border-red-500 ring-red-500 @enderror"></textarea>
+                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500 @error('additional_info') border-red-500 ring-red-500 @enderror"></textarea>
                             @error('additional_info')
                             <span class="text-sm text-red-600">{{ $message }}</span>
                             @enderror
@@ -480,11 +470,11 @@
             @endif
 
             <!-- Stockins table -->
-            <div class="border-2 border-secondary p-2 rounded my-10">
+            <div class="border  border-secondary p-5 rounded my-10">
                 <h2 class="text-2xl">Stokin Records</h2>
                 <livewire:components.table-component
                     :modelNamespace="$model"
-                    :columns="['supplier', 'receivedBy.name', 'quantity', 'additional_info', 'expiry_date', 'created_at']"
+                    :columns="['supplier', 'receivedBy.name', 'quantity', 'expiry_date', 'created_at']"
                     :search="$search"
                     :itemsPerPage="$itemsPerPage"
                     searchPlaceHolder='Search stock ins'

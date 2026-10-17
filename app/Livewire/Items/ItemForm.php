@@ -72,9 +72,9 @@ class ItemForm extends Component
             'name' => 'required|string|max:255',
             'unit_price' => 'required|numeric|min:0',
             'buyingPrice' => 'required|numeric|min:0',
-            'supplier' => 'required|string|max:255',
-            'manufacturer' => 'required|string|max:255',
-            'description' => 'required|string',
+            'supplier' => 'nullable|string|max:255',
+            'manufacturer' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'item_type_id' => 'required|exists:item_types,id',
             'strength' => 'nullable|string|max:100',
             'image' => 'nullable|image|max:2048|mimes:jpg,jpeg,png,gif,webp',
@@ -436,6 +436,8 @@ class ItemForm extends Component
             
             // Refresh the stockins table
             $this->dispatch('stockin-added');
+
+            $this->redirect(route('item.show', $this->item_id), true);
             
         } catch (Exception $e) {
             DB::rollBack();

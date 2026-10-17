@@ -43,7 +43,7 @@
                     <div>
                         <label for="name" class="block text-sm font-medium text-gray-700">Item Itype Name</label>
                         <input {{ $isView ? 'disabled' : '' }} type="text" id="name" wire:model="name"
-                            placeholder="Enter Item Itype name E.g Pain Killer"
+                            placeholder="Enter Item Type Name"
                             class="{{ $isView ? 'bg-slate-100 cursor-not-allowed' : '' }}  mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500
                         @error('name') border-red-500 ring-red-500 @enderror" />
 
