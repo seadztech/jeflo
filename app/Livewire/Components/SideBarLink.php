@@ -21,7 +21,7 @@ class SideBarLink extends Component
             ['name'=> 'itemTypes', 'icon' => 'list', 'label' => 'Item Types', 'permission' => 'view item types'],
             ['name'=> 'items', 'icon' => 'list', 'label' => 'Items', 'permission' => 'view items'],
             ['name'=> 'sales', 'icon' => 'square-poll-vertical', 'label' => 'Sales', 'permission' => 'view sales'],
-            ['name'=> 'transactions', 'icon' => 'money-bill', 'label' => 'Transactions', 'permission' => 'view transactions'],
+            // ['name'=> 'transactions', 'icon' => 'money-bill', 'label' => 'Transactions', 'permission' => 'view transactions'],
             ['name'=> 'reports', 'icon' => 'chart-simple', 'label' => 'Reports', 'permission' => 'view reports'],
             ['name'=> 'pos', 'icon' => 'calculator', 'label' => 'POS', 'permission' => 'access pos'],
         ];

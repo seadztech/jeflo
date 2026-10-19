@@ -393,19 +393,6 @@
                             @enderror
                         </div>
 
-                        <!-- Expiry Date -->
-                        <div>
-                            <label for="expiry_date" class="block text-sm font-medium text-gray-700">Expiry
-                                Date</label>
-                            <input type="date"
-                                id="expiry_date"
-                                wire:model="expiry_date"
-                                min="{{ date('Y-m-d', strtotime('+1 day')) }}"
-                                class="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none  focus:ring-blue-500 @error('expiry_date') border-red-500 ring-red-500 @enderror" />
-                            @error('expiry_date')
-                            <span class="text-sm text-red-600">{{ $message }}</span>
-                            @enderror
-                        </div>
 
                         <!-- Additional Info -->
                         <div class="md:col-span-2 lg:col-span-3">
@@ -474,7 +461,7 @@
                 <h2 class="text-2xl">Stokin Records</h2>
                 <livewire:components.table-component
                     :modelNamespace="$model"
-                    :columns="['supplier', 'receivedBy.name', 'quantity', 'expiry_date', 'created_at']"
+                    :columns="['supplier', 'receivedBy.name', 'quantity', 'created_at']"
                     :search="$search"
                     :itemsPerPage="$itemsPerPage"
                     searchPlaceHolder='Search stock ins'

@@ -53,7 +53,8 @@ class ItemForm extends Component
     public $branch_id;
     public $received_by;
     public $stockinQuantity;
-    public $expiry_date;
+
+    
     public $stockin_supplier;
     public $additional_info;
 
@@ -341,10 +342,11 @@ class ItemForm extends Component
     {
         $this->batch_id = '';
         $this->stockinQuantity = '';
-        $this->expiry_date = '';
+  
+        
         $this->stockin_supplier = '';
         $this->additional_info = '';
-        $this->resetErrorBag(['batch_id', 'stockinQuantity', 'expiry_date', 'stockin_supplier']);
+        $this->resetErrorBag(['batch_id', 'stockinQuantity', 'stockin_supplier']);
     }
 
     /**
@@ -387,7 +389,6 @@ class ItemForm extends Component
         $this->validate([
             'batch_id' => 'required|unique:stockins,batch_id',
             'stockinQuantity' => 'required|integer|min:1',
-            'expiry_date' => 'nullable|date|after:today',
             'stockin_supplier' => 'required|string|max:255',
             'additional_info' => 'nullable|string|max:500',
         ]);
@@ -400,7 +401,6 @@ class ItemForm extends Component
             $stockin->batch_id = $this->batch_id;
             $stockin->branch_id = $this->branch_id ?? 1;
             $stockin->quantity = $this->stockinQuantity;
-            $stockin->expiry_date = $this->expiry_date;
             $stockin->supplier = $this->stockin_supplier;
             $stockin->received_by = Auth::user()->id;
             $stockin->additional_info = $this->additional_info ?? 'No additional information';
